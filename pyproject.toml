@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "zworkflow"
-version = "0.0.1"
+version = "0.0.4"
 authors = [
     {name="Stone Zhong", email="stone.zhong@gmail.com"}
 ]
@@ -26,8 +26,20 @@ dependencies = [
     "temporalio",
     "aiofiles",
     "psycopg2-binary",
+    "cel_expr_python",
 ]
 
 [project.urls]
-Homepage = "https://github.com/stonezhong/fletext"
-Issues = "https://github.com/stonezhong/fletext/issues"
+Homepage = "https://github.com/stonezhong/workflow"
+Issues = "https://github.com/stonezhong/workflow/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/zworkflow"]
+artifacts = [
+    "src/zworkflow/webui/dist/**/*",
+]
+
+[tool.hatch.build.targets.sdist]
+artifacts = [
+    "src/zworkflow/webui/dist/**/*",
+]
