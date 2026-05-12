@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "zworkflow"
+version = "0.0.1"
+authors = [
+    {name="Stone Zhong", email="stone.zhong@gmail.com"}
+]
+description = "Workflow Engine"
+readme = "README.md"
+requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "MIT"
+license-files = ["LICENSE"]
+
+dependencies = [
+    "pydantic",
+    "fastapi",
+    "SQLAlchemy",
+    "uvicorn[standard]",
+    "temporalio",
+    "aiofiles",
+    "psycopg2-binary",
+]
+
+[project.urls]
+Homepage = "https://github.com/stonezhong/fletext"
+Issues = "https://github.com/stonezhong/fletext/issues"
