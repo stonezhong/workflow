@@ -3,8 +3,9 @@ from __future__ import annotations
 from typing import List
 import uuid
 from enum import Enum
+from datetime import datetime, timezone
 
-from sqlalchemy import String, UniqueConstraint, ForeignKey, JSON
+from sqlalchemy import String, UniqueConstraint, ForeignKey, JSON, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -164,6 +165,24 @@ class WorkflowDTO(Base):
         init=False
     )
 
+    time_created: Mapped[datetime] = mapped_column(
+        DateTime(),
+        insert_default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        init=False
+    )
+    time_started: Mapped[datetime | None] = mapped_column(
+        DateTime(),
+        nullable=True,
+        default=None,
+        init=False
+    )
+    time_ended: Mapped[datetime | None] = mapped_column(
+        DateTime(),
+        nullable=True,
+        default=None,
+        init=False
+    )
+
 ######################################################################################
 # 代表workflow中的一个步骤的执行
 ######################################################################################
@@ -225,6 +244,24 @@ class TaskDTO(Base):
     state: Mapped[TaskState]
     input: Mapped[dict|None] = mapped_column(JSON, nullable=True, default=None)
     output: Mapped[dict|None] = mapped_column(JSON, nullable=True, default=None)
+
+    time_created: Mapped[datetime] = mapped_column(
+        DateTime(),
+        insert_default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        init=False
+    )
+    time_started: Mapped[datetime | None] = mapped_column(
+        DateTime(),
+        nullable=True,
+        default=None,
+        init=False
+    )
+    time_ended: Mapped[datetime | None] = mapped_column(
+        DateTime(),
+        nullable=True,
+        default=None,
+        init=False
+    )
 
 ######################################################################################
 # 定义一个Task

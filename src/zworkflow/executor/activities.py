@@ -47,7 +47,7 @@ async def generic_activity(step_id: str) -> None:
             # 进入这个函数的时候，task的状态应该是RUN_REQUESTED
             # 将task切换成RUNNING状态
             ####################################################################
-            workflow_service.set_task_state(task.id, TaskState.RUNNING, session=session)
+            workflow_service.set_task_state_running(task.id, session=session)
             logger.info(f"generic_activity({step_id}): change task state to RUNNING")
 
     # 现在寻找handler，并且运行
@@ -57,21 +57,21 @@ async def generic_activity(step_id: str) -> None:
         logger.info(f"generic_activity({step_id}): no handler, step failed")
         with Session(engine) as session:
             with session.begin() as transaction:
-                workflow_service.set_task_state(task.id, TaskState.FAILED, session=session)
+                workflow_service.set_task_state_failed(task.id, session=session)
         return None
     
     try:
         output = await handler(task.input)
         with Session(engine) as session:
             with session.begin() as transaction:
-                workflow_service.complete_task(task.id, output, session=session)
+                workflow_service.set_task_state_succeeded(task.id, output, session=session)
                 # TODO: save output
         logger.info(f"generic_activity({step_id}): task succeeded")
         return None
     except Exception as e:
         with Session(engine) as session:
             with session.begin() as transaction:
-                workflow_service.set_task_state(task.id, TaskState.FAILED, session=session)
+                workflow_service.set_task_state_failed(task.id, session=session)
         logger.error(f"generic_activity({step_id}): task failed", e)
 
 

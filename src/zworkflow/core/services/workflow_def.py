@@ -206,7 +206,7 @@ class WorkflowService:
         temporal_workflow_id = str(uuid.uuid4())
         
         workflow:Workflow = self.create_workflow_in_db(create_workflow_details, session = session)
-        self.change_state(workflow.id, WorkflowState.CREATED, WorkflowState.RUN_REQUESTED, session=session)
+        self.set_state_run_requested(workflow.id, session=session)
         client = await Client.connect(f"{app_config.temporal.host}:{app_config.temporal.port}")
         await client.start_workflow(
             "GenericWorkflow",
@@ -264,17 +264,28 @@ class WorkflowService:
         return self.mapper.workflow_to_model(workflow_dto)
 
     ############################################################
-    # 通过id来获得一个Workflow
-    # 如果修改成功，则返回True，否则False
+    # 将一个Workflow的状态设置成RUN_REQUESTED
     ############################################################
-    def change_state(
-            self, 
-            id:str, 
-            from_state:WorkflowState, 
-            to_state:WorkflowState, 
-            *, 
-            session:Session) -> bool:
-        return self.workflow_dao.change_state(id, from_state, to_state, session=session)
+    def set_state_run_requested(self, workflow_id:str, *, session:Session) -> bool:
+        return self.workflow_dao.set_state_run_requested(id, session=session)
+
+    ############################################################
+    # 将一个Workflow的状态设置成RUNNING
+    ############################################################
+    def set_state_running(self, workflow_id:str, *, session:Session) -> bool:
+        return self.workflow_dao.set_state_running(id, session=session)
+
+    ############################################################
+    # 将一个Workflow的状态设置成SUCCEEDED
+    ############################################################
+    def set_state_succeeded(self, workflow_id:str, *, session:Session) -> bool:
+        return self.workflow_dao.set_state_succeeded(id, session=session)
+
+    ############################################################
+    # 将一个Workflow的状态设置成FAILED
+    ############################################################
+    def set_state_failed(self, workflow_id:str, *, session:Session) -> bool:
+        return self.workflow_dao.set_state_failed(id, session=session)
 
     ############################################################
     # 通过id来获得一个Workflow
@@ -295,11 +306,14 @@ class WorkflowService:
         return (workflow, step)
 
 
-    def set_task_state(self, task_id:str, state:TaskState, *, session:Session) -> bool:
-        return self.workflow_dao.set_task_state(task_id, state, session=session)
+    def set_task_state_running(self, task_id:str, *, session:Session) -> bool:
+        return self.workflow_dao.set_task_state_running(task_id, session=session)
 
-    def complete_task(self, task_id:str, output:dict, *, session:Session) -> bool:
-        return self.workflow_dao.complete_task(task_id, output, session=session)
+    def set_task_state_failed(self, task_id:str, *, session:Session) -> bool:
+        return self.workflow_dao.set_task_state_failed(task_id, session=session)
+
+    def set_task_state_succeeded(self, task_id:str, output:dict, *, session:Session) -> bool:
+        return self.workflow_dao.set_task_state_succeeded(task_id, output, session=session)
 
     ############################################################
     # 为执行一个步骤作准备

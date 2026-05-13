@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import List
 
+from datetime import datetime, timezone
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 from zworkflow.dal.dtos import WorkflowDTO, WorkflowState, TaskState, TaskDTO, StepDTO
@@ -23,38 +24,90 @@ class WorkflowDAO:
         session.flush()
         return workflow
     
-    # 改变一个workflow的状态。源状态必须符合from_state
-    def change_state(
-            self, 
-            id:str,
-            from_state:WorkflowState, 
-            to_state:WorkflowState, 
-            *, 
-            session:Session
-    ) -> bool:
+    # 将一个Workflow设置成RUN_REQUESTED状态
+    def set_state_run_requested(self, id:str, *, session:Session):
         result = session.execute(
             update(WorkflowDTO)
             .where(WorkflowDTO.id == id)
-            .where(WorkflowDTO.state == from_state)
-            .values(state=to_state)
-        )
-        session.flush()
-        return result.rowcount > 0
-    
-    def set_task_state(self, task_id:str, state:TaskState, *, session:Session) -> bool:
-        result = session.execute(
-            update(TaskDTO)
-            .where(TaskDTO.id == task_id)
-            .values(state=state)
+            .values(state=WorkflowState.RUN_REQUESTED)
         )
         session.flush()
         return result.rowcount > 0
 
-    def complete_task(self, task_id:str, output:dict, *, session:Session) -> bool:
+    # 将一个Workflow设置成RUNNING状态
+    def set_state_running(self, id:str, *, session:Session):
+        result = session.execute(
+            update(WorkflowDTO)
+            .where(WorkflowDTO.id == id)
+            .values(
+                state=WorkflowState.RUNNING,
+                time_started=datetime.now(timezone.utc).replace(tzinfo=None)
+            )
+        )
+        session.flush()
+        return result.rowcount > 0
+
+    # 将一个Workflow设置成SUCCEEDED状态
+    def set_state_succeeded(self, id:str, *, session:Session):
+        result = session.execute(
+            update(WorkflowDTO)
+            .where(WorkflowDTO.id == id)
+            .values(
+                state=WorkflowState.SUCCEEDED, 
+                time_ended=datetime.now(timezone.utc).replace(tzinfo=None)
+            )
+        )
+        session.flush()
+        return result.rowcount > 0
+
+    # 将一个Workflow设置成FAILED状态
+    def set_state_failed(self, id:str, *, session:Session):
+        result = session.execute(
+            update(WorkflowDTO)
+            .where(WorkflowDTO.id == id)
+            .values(
+                state=WorkflowState.FAILED,
+                time_ended=datetime.now(timezone.utc).replace(tzinfo=None)
+            )
+        )
+        session.flush()
+        return result.rowcount > 0
+
+    # 将一个Task状态设置成RUNNING
+    def set_task_state_running(self, task_id:str, *, session:Session) -> bool:
         result = session.execute(
             update(TaskDTO)
             .where(TaskDTO.id == task_id)
-            .values(state=TaskState.SUCCEEDED, output=output)
+            .values(
+                state=TaskState.RUNNING, 
+                time_started=datetime.now(timezone.utc).replace(tzinfo=None)
+            )
+        )
+        session.flush()
+        return result.rowcount > 0
+
+    # put task in running state
+    def set_task_state_failed(self, task_id:str, *, session:Session) -> bool:
+        result = session.execute(
+            update(TaskDTO)
+            .where(TaskDTO.id == task_id)
+            .values(
+                state=TaskState.FAILED, 
+                time_ended=datetime.now(timezone.utc).replace(tzinfo=None)
+            )
+        )
+        session.flush()
+        return result.rowcount > 0
+
+    def set_task_state_succeeded(self, task_id:str, output:dict, *, session:Session) -> bool:
+        result = session.execute(
+            update(TaskDTO)
+            .where(TaskDTO.id == task_id)
+            .values(
+                state=TaskState.SUCCEEDED, 
+                output=output, 
+                time_ended=datetime.now(timezone.utc).replace(tzinfo=None)
+            )
         )
         session.flush()
         return result.rowcount > 0

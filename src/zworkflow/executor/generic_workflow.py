@@ -103,7 +103,7 @@ class GenericWorkflow:
                     # workflow不存在，毋需继续
                     logger.info(f"GenericWorkflow.run({workflow_id}): exit, workflow does not exist")
                     return
-                if not workflow_service.change_state(zworkflow.id, WorkflowState.RUN_REQUESTED, WorkflowState.RUNNING, session=session):
+                if not workflow_service.set_task_state_running(zworkflow.id, session=session):
                     # 无法切换成RUNNING状态，毋需继续
                     transaction.rollback()
                     logger.info(f"GenericWorkflow.run({workflow_id}): exit, cannot change workflow state to running")
@@ -151,12 +151,13 @@ class GenericWorkflow:
                 logger.info(f"GenericWorkflow.run({workflow_id}): workflow worker decided to quit and set state to {next_workflow_state}")
                 with Session(engine) as session:
                     with session.begin() as transaction:
-                        r = workflow_service.change_state(zworkflow.id, WorkflowState.RUNNING, next_workflow_state, session=session)
-                        if r:
-                            logger.info(f"GenericWorkflow.run({workflow_id}): workflow state update successful")
-                        else:
-                            logger.warning(f"GenericWorkflow.run({workflow_id}): workflow state update failed")
-
+                        assert next_workflow_state in (WorkflowState.SUCCEEDED, WorkflowState.FAILED)
+                        if next_workflow_state == WorkflowState.SUCCEEDED:
+                            workflow_service.set_state_succeeded(zworkflow.id, session=session)
+                            logger.info(f"GenericWorkflow.run({workflow_id}): set state to SUCCEEDED")
+                        if next_workflow_state == WorkflowState.FAILED:
+                            workflow_service.set_state_failed(zworkflow.id, session=session)
+                            logger.info(f"GenericWorkflow.run({workflow_id}): set state to FAILED")
                 break
 
 
