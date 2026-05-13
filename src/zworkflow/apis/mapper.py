@@ -63,7 +63,10 @@ class APIMapper:
             title = workflow.title,
             input = workflow.input,
             state = workflow.state,
-            steps = [self.step_to_api(step) for step in workflow.steps]
+            steps = [self.step_to_api(step) for step in workflow.steps],
+            time_created = workflow.time_created,
+            time_started = workflow.time_started,
+            time_ended = workflow.time_ended
         )
     
     def step_to_api(self, step:Step|None) -> APIStep|None:
@@ -80,7 +83,10 @@ class APIMapper:
             task_def = self.task_def_to_api(task.task_def),
             input = deepcopy(task.input),
             output = deepcopy(task.output),
-            state = task.state
+            state = task.state,
+            time_created = task.time_created,
+            time_started = task.time_started,
+            time_ended = task.time_ended
         )
 
     def schema_to_api(self, schema: Schema|None) -> APISchema|None:

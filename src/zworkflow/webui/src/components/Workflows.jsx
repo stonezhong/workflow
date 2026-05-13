@@ -103,18 +103,31 @@ export default function Workflows() {
           <h3>No workflows yet</h3>
           <p>Active and historical workflows will appear here.</p>
         </div>
-      ) : (
+      ) : isDetailView ? (
         <div className="def-list">
           {visibleWorkflows.map(workflow => (
             <div key={workflow.id} className="def-list-item">
-              {isDetailView ? (
-                <Workflow workflow={workflow} />
-              ) : (
-                <WorkflowSummary workflow={workflow} />
-              )}
+              <Workflow workflow={workflow} />
             </div>
           ))}
         </div>
+      ) : (
+        <table className="data-table workflow-list-table">
+          <thead>
+            <tr>
+              <th>State</th>
+              <th>Title</th>
+              <th>Time Created</th>
+              <th>Time Started</th>
+              <th>Time Ended</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleWorkflows.map(workflow => (
+              <WorkflowSummary key={workflow.id} workflow={workflow} />
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   )

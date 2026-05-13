@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import DagView from './DagView'
 
 export const STATE_LABEL = { 
@@ -15,6 +16,28 @@ export const STATE_COLOR = {
     5: '#ff0000'
 }
 const STEP_TYPE_LABEL = { 1: 'Task', 2: 'Workflow' }
+
+export function formatWorkflowTime(value) {
+  if (!value) return '—'
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value)
+  }
+
+  const pad = number => String(number).padStart(2, '0')
+
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join('-') + ' ' + [
+    pad(date.getHours()),
+    pad(date.getMinutes()),
+    pad(date.getSeconds()),
+  ].join(':')
+}
 
 function stepInvokeLabel(step) {
   const stepDef = step.step_def ?? step
@@ -40,24 +63,24 @@ function stepInvokeLabel(step) {
 
 function getStepInput(step) {
     if (step.step_def.type === 1) {
-        return step.invoke_task ? JSON.stringify(step.invoke_task.input, null, 2) : "";
+        return step.invoke_task ? step.invoke_task.input : undefined;
     }
     
     if (step.step_def.type === 2) {
-        return step.invoke_workflow ? JSON.stringify(step.invoke_workflow.input, null, 2) : "";
+        return step.invoke_workflow ? step.invoke_workflow.input : undefined;
     }
-    return "";
+    return undefined;
 }
 
 function getStepOutput(step) {
     if (step.step_def.type === 1) {
-        return step.invoke_task ? JSON.stringify(step.invoke_task.output, null, 2) : "";
+        return step.invoke_task ? step.invoke_task.output : undefined;
     }
     
     if (step.step_def.type === 2) {
-        return step.invoke_workflow ? JSON.stringify(step.invoke_workflow.output, null, 2) : "";
+        return step.invoke_workflow ? step.invoke_workflow.output : undefined;
     }
-    return "";
+    return undefined;
 }
 
 function getStepState(step) {
@@ -68,6 +91,31 @@ function getStepState(step) {
         return step.invoke_workflow ? step.invoke_workflow.state : null;
     }
     return null;
+}
+
+function FoldableJson({ value, label }) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const hasValue = value !== undefined
+
+  if (!hasValue) {
+    return <span className="empty-note">—</span>
+  }
+
+  return (
+    <div className="foldable-schema">
+      <button
+        type="button"
+        className="schema-toggle"
+        aria-expanded={isExpanded}
+        onClick={() => setIsExpanded(value => !value)}
+      >
+        {isExpanded ? `Hide ${label}` : `Show ${label}`}
+      </button>
+      {isExpanded && (
+        <pre className="json-block schema-block">{JSON.stringify(value, null, 2)}</pre>
+      )}
+    </div>
+  )
 }
 
 export default function Workflow({ workflow }) {
@@ -112,6 +160,10 @@ export default function Workflow({ workflow }) {
             <td>{workflow.description}</td>
           </tr>
           <tr>
+            <td className="detail-label">Created</td>
+            <td>{formatWorkflowTime(workflow.time_created)}</td>
+          </tr>
+          <tr>
             <td className="detail-label">State</td>
             <td>
               <span className="state-badge" style={{ background: stateColor }}>
@@ -126,9 +178,7 @@ export default function Workflow({ workflow }) {
           {workflow.input && (
             <tr>
               <td className="detail-label">Input</td>
-              <td>
-                <pre className="json-block">{JSON.stringify(workflow.input, null, 2)}</pre>
-              </td>
+              <td><FoldableJson value={workflow.input} label="input" /></td>
             </tr>
           )}
         </tbody>
@@ -159,8 +209,8 @@ export default function Workflow({ workflow }) {
                 <td>{stepDef.title}</td>
                 <td>{STEP_TYPE_LABEL[stepDef.type]}</td>
                 <td>{stepInvokeLabel(step)}</td>
-                <td><pre>{getStepInput(step)}</pre></td>
-                <td><pre>{getStepOutput(step)}</pre></td>
+                <td><FoldableJson value={getStepInput(step)} label="input" /></td>
+                <td><FoldableJson value={getStepOutput(step)} label="output" /></td>
               </tr>
               )
             })}

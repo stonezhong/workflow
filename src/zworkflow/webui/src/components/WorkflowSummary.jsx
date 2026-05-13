@@ -1,4 +1,4 @@
-import { STATE_COLOR, STATE_LABEL } from './Workflow'
+import { STATE_COLOR, STATE_LABEL, formatWorkflowTime } from './Workflow'
 
 export default function WorkflowSummary({ workflow }) {
   if (!workflow) return null
@@ -12,13 +12,18 @@ export default function WorkflowSummary({ workflow }) {
   }).toString()}`
 
   return (
-    <div className="workflow-summary">
-      <span className="def-name">
+    <tr>
+      <td>
+        <span className="state-badge" style={{ background: stateColor }}>
+          {stateLabel}
+        </span>
+      </td>
+      <td>
         <a href={workflowUrl}>{workflow.title}</a>
-      </span>
-      <span className="state-badge" style={{ background: stateColor }}>
-        {stateLabel}
-      </span>
-    </div>
+      </td>
+      <td>{formatWorkflowTime(workflow.time_created)}</td>
+      <td>{formatWorkflowTime(workflow.time_started)}</td>
+      <td>{formatWorkflowTime(workflow.time_ended)}</td>
+    </tr>
   )
 }

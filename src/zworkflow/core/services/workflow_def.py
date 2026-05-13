@@ -491,7 +491,10 @@ class Mapper:
             title = workflow_dto.title,
             input = workflow_dto.input,
             output = workflow_dto.output,
-            state = workflow_dto.state
+            state = workflow_dto.state,
+            time_created = workflow_dto.time_created,
+            time_started = workflow_dto.time_started,
+            time_ended = workflow_dto.time_ended
         )
         for step_dto in workflow_dto.steps:
             workflow.steps.append(self.step_to_model(workflow_def, step_dto))
@@ -524,7 +527,10 @@ class Mapper:
             task_def = self.task_def_to_model(task_dto.task_def),
             state = task_dto.state,
             input = task_dto.input,
-            output = task_dto.output
+            output = task_dto.output,
+            time_created = task_dto.time_created,
+            time_started = task_dto.time_started,
+            time_ended = task_dto.time_ended
         )
     
     def step_to_model(self, workflow_def:WorkflowDef, step_dto:StepDTO) -> Step:

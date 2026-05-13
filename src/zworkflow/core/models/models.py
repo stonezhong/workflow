@@ -1,5 +1,7 @@
 from __future__ import annotations
-from typing import List, Set
+
+from typing import List
+from datetime import datetime
 from pydantic import BaseModel, Field
 
 from zworkflow.dal.dtos import StepDefType, WorkflowState, TaskState
@@ -27,8 +29,8 @@ class StepDef(BaseModel):
     title: str
     type: StepDefType
     input: str                  # 表达式
-    invoke_task_def: TaskDef | None = None
-    invoke_workflow_def: WorkflowDef | None = None
+    invoke_task_def: TaskDef|None = None
+    invoke_workflow_def: WorkflowDef|None = None
 
 class StepDefDep(BaseModel):
     id: str
@@ -52,25 +54,32 @@ class Workflow(BaseModel):
     description: str
     title: str
 
-    input: dict | None = None
-    output: dict | None = None
+    input: dict|None = None
+    output: dict|None = None
 
     state: WorkflowState
     steps: List[Step] = Field(default_factory=list)
 
+    time_created: datetime
+    time_started: datetime|None = None
+    time_ended: datetime|None = None
+
 class Step(BaseModel):
     id: str
     step_def: StepDef
-    invoke_task: Task|None
-    invoke_workflow: Workflow|None
+    invoke_task: Task|None = None
+    invoke_workflow: Workflow|None = None
 
 
 class Task(BaseModel):
     id: str
     task_def: TaskDef
-    input: dict | None = None
-    output: dict | None = None
+    input: dict|None = None
+    output: dict|None = None
     state: TaskState
+    time_created: datetime
+    time_started: datetime|None = None
+    time_ended: datetime|None = None
 
 class CreateWorkflowDefDetails(BaseModel):
     name: str
@@ -88,8 +97,8 @@ class CreateWorkflowDefStepDetails(BaseModel):
     title: str
     type: StepDefType
     input: str
-    invoke_task_def_nv:     NameAndVersion | None = None
-    invoke_workflow_def_nv: NameAndVersion | None = None
+    invoke_task_def_nv:     NameAndVersion|None = None
+    invoke_workflow_def_nv: NameAndVersion|None = None
 
 class NameAndVersion(BaseModel):
     name: str
@@ -111,7 +120,7 @@ class CreateWorkflowDetails(BaseModel):
     workflow_def_nv: NameAndVersion
     description: str
     title: str
-    input: dict | None = None
+    input: dict|None = None
 
 class CreateSchemaDetails(BaseModel):
     name: str

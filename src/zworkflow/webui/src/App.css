@@ -451,6 +451,28 @@
   border-bottom: none;
 }
 
+.workflow-list-table td {
+  vertical-align: middle;
+}
+
+.workflow-list-table th:first-child,
+.workflow-list-table td:first-child {
+  width: 200px;
+}
+
+.workflow-list-table th:nth-child(3),
+.workflow-list-table td:nth-child(3),
+.workflow-list-table th:nth-child(4),
+.workflow-list-table td:nth-child(4),
+.workflow-list-table th:nth-child(5),
+.workflow-list-table td:nth-child(5) {
+  width: 200px;
+}
+
+.workflow-list-table td:nth-child(2) {
+  font-weight: 600;
+}
+
 .compact-edit-table select {
   width: 100%;
   border: 1px solid var(--color-border);
@@ -519,6 +541,16 @@
   flex-shrink: 0;
   font-size: 0.875rem;
   font-weight: 600;
+}
+
+.workflow-time-list {
+  color: var(--color-muted);
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  margin-left: auto;
+  white-space: nowrap;
 }
 
 .def-details,

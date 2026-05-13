@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 from typing import List
+from datetime import datetime
 from pydantic import BaseModel, Field
 
 from zworkflow.dal.dtos import StepDefType, WorkflowState, TaskState
@@ -22,8 +24,8 @@ class APIStepDef(BaseModel):
     title: str
     type: StepDefType
     input: str                  # 表达式
-    invoke_task_def: APITaskDef | None = None
-    invoke_workflow_def: APIWorkflowDef | None = None
+    invoke_task_def: APITaskDef|None = None
+    invoke_workflow_def: APIWorkflowDef|None = None
 
 class APIStepDefDep(BaseModel):
     id: str
@@ -78,8 +80,8 @@ class APICreateWorkflowDefStepDetails(BaseModel):
     title: str
     type: StepDefType
     input: str
-    invoke_task_def_nv:     APINameAndVersion | None = None
-    invoke_workflow_def_nv: APINameAndVersion | None = None
+    invoke_task_def_nv:     APINameAndVersion|None = None
+    invoke_workflow_def_nv: APINameAndVersion|None = None
 
 class APINameAndVersion(BaseModel):
     name: str
@@ -97,22 +99,28 @@ class APIWorkflow(BaseModel):
     input: dict | None = None
     state: WorkflowState
     steps: List[APIStep] = Field(default_factory=list)
+    time_created: datetime
+    time_started: datetime|None = None
+    time_ended: datetime|None = None
 
 class APITask(BaseModel):
     id: str
     task_def: APITaskDef
-    input: dict|None
-    output: dict|None
+    input: dict|None=None
+    output: dict|None=None
     state: TaskState
+    time_created: datetime
+    time_started: datetime|None = None
+    time_ended: datetime|None = None
 
 class APIStep(BaseModel):
     id: str
     step_def: APIStepDef
-    invoke_task: APITask|None
-    invoke_workflow: APIWorkflow|None
+    invoke_task: APITask|None = None
+    invoke_workflow: APIWorkflow|None = None
 
 class APICreateWorkflowDetails(BaseModel):
     workflow_def_nv: APINameAndVersion
     description: str
     title: str
-    input: dict | None = None
+    input: dict|None = None

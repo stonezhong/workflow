@@ -120,24 +120,8 @@ export default function WorkflowDefinition({ workflowDef }) {
             </table>
           )}
 
-          <h3 className="section-subheading">Step Dependencies</h3>
+          <h3 className="section-subheading">Step Diagram</h3>
             <div>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>From</th>
-                    <th>To</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {workflowDef.step_deps.map(dep => (
-                    <tr key={dep.id}>
-                      <td><code>{dep.source_step_def_key}</code></td>
-                      <td><code>{dep.destination_step_def_key}</code></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
               <DagView
                 nodes={workflowDef.steps.map(step => ({
                   key: step.key,
