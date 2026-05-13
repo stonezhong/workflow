@@ -61,6 +61,39 @@ function stepInvokeLabel(step) {
   return '—'
 }
 
+function getStepTimeCreated(step) {
+    if (step.step_def.type === 1) {
+        return step.invoke_task ? step.invoke_task.time_created : undefined;
+    }
+    
+    if (step.step_def.type === 2) {
+        return step.invoke_workflow ? step.invoke_workflow.time_created : undefined;
+    }
+    return undefined;
+}
+
+function getStepTimeStarted(step) {
+    if (step.step_def.type === 1) {
+        return step.invoke_task ? step.invoke_task.time_started : undefined;
+    }
+    
+    if (step.step_def.type === 2) {
+        return step.invoke_workflow ? step.invoke_workflow.time_started : undefined;
+    }
+    return undefined;
+}
+
+function getStepTimeEnded(step) {
+    if (step.step_def.type === 1) {
+        return step.invoke_task ? step.invoke_task.time_ended : undefined;
+    }
+    
+    if (step.step_def.type === 2) {
+        return step.invoke_workflow ? step.invoke_workflow.time_ended : undefined;
+    }
+    return undefined;
+}
+
 function getStepInput(step) {
     if (step.step_def.type === 1) {
         return step.invoke_task ? step.invoke_task.input : undefined;
@@ -164,6 +197,14 @@ export default function Workflow({ workflow }) {
             <td>{formatWorkflowTime(workflow.time_created)}</td>
           </tr>
           <tr>
+            <td className="detail-label">Started</td>
+            <td>{formatWorkflowTime(workflow.time_started)}</td>
+          </tr>
+          <tr>
+            <td className="detail-label">Ended</td>
+            <td>{formatWorkflowTime(workflow.time_ended)}</td>
+          </tr>
+          <tr>
             <td className="detail-label">State</td>
             <td>
               <span className="state-badge" style={{ background: stateColor }}>
@@ -188,13 +229,16 @@ export default function Workflow({ workflow }) {
       {steps.length === 0 ? (
         <p className="empty-note">No steps defined.</p>
       ) : (
-        <table className="data-table">
+        <table className="data-table workflow-steps-table">
           <thead>
             <tr>
               <th>Key</th>
               <th>Title</th>
               <th>Type</th>
               <th>Invokes</th>
+              <th>Time Created</th>
+              <th>Time Started</th>
+              <th>Time Ended</th>
               <th>Input</th>
               <th>Output</th>
             </tr>
@@ -209,6 +253,9 @@ export default function Workflow({ workflow }) {
                 <td>{stepDef.title}</td>
                 <td>{STEP_TYPE_LABEL[stepDef.type]}</td>
                 <td>{stepInvokeLabel(step)}</td>
+                <td>{formatWorkflowTime(getStepTimeCreated(step))}</td>
+                <td>{formatWorkflowTime(getStepTimeStarted(step))}</td>
+                <td>{formatWorkflowTime(getStepTimeEnded(step))}</td>
                 <td><FoldableJson value={getStepInput(step)} label="input" /></td>
                 <td><FoldableJson value={getStepOutput(step)} label="output" /></td>
               </tr>

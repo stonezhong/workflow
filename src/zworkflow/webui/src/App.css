@@ -473,6 +473,15 @@
   font-weight: 600;
 }
 
+.workflow-steps-table th:nth-child(5),
+.workflow-steps-table td:nth-child(5),
+.workflow-steps-table th:nth-child(6),
+.workflow-steps-table td:nth-child(6),
+.workflow-steps-table th:nth-child(7),
+.workflow-steps-table td:nth-child(7) {
+  width: 200px;
+}
+
 .compact-edit-table select {
   width: 100%;
   border: 1px solid var(--color-border);
