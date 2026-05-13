@@ -267,25 +267,25 @@ class WorkflowService:
     # 将一个Workflow的状态设置成RUN_REQUESTED
     ############################################################
     def set_state_run_requested(self, workflow_id:str, *, session:Session) -> bool:
-        return self.workflow_dao.set_state_run_requested(id, session=session)
+        return self.workflow_dao.set_state_run_requested(workflow_id, session=session)
 
     ############################################################
     # 将一个Workflow的状态设置成RUNNING
     ############################################################
     def set_state_running(self, workflow_id:str, *, session:Session) -> bool:
-        return self.workflow_dao.set_state_running(id, session=session)
+        return self.workflow_dao.set_state_running(workflow_id, session=session)
 
     ############################################################
     # 将一个Workflow的状态设置成SUCCEEDED
     ############################################################
     def set_state_succeeded(self, workflow_id:str, *, session:Session) -> bool:
-        return self.workflow_dao.set_state_succeeded(id, session=session)
+        return self.workflow_dao.set_state_succeeded(workflow_id, session=session)
 
     ############################################################
     # 将一个Workflow的状态设置成FAILED
     ############################################################
     def set_state_failed(self, workflow_id:str, *, session:Session) -> bool:
-        return self.workflow_dao.set_state_failed(id, session=session)
+        return self.workflow_dao.set_state_failed(workflow_id, session=session)
 
     ############################################################
     # 通过id来获得一个Workflow

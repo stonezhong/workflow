@@ -103,7 +103,7 @@ class GenericWorkflow:
                     # workflow不存在，毋需继续
                     logger.info(f"GenericWorkflow.run({workflow_id}): exit, workflow does not exist")
                     return
-                if not workflow_service.set_task_state_running(zworkflow.id, session=session):
+                if not workflow_service.set_state_running(zworkflow.id, session=session):
                     # 无法切换成RUNNING状态，毋需继续
                     transaction.rollback()
                     logger.info(f"GenericWorkflow.run({workflow_id}): exit, cannot change workflow state to running")
