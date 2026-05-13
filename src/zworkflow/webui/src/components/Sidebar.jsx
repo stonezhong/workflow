@@ -6,9 +6,9 @@ const MAIN_NAV_ITEMS = [
 ]
 
 const CREATE_NAV_ITEMS = [
+  { id: 'new-task-definition',  label: 'New Task Definition',   icon: '+' },
   { id: 'new-workflow-definition', label: 'New Workflow Def', icon: '+' },
   { id: 'new-workflow',         label: 'New Workflow',          icon: '+' },
-  { id: 'new-task-definition',  label: 'New Task Definition',   icon: '+' },
 ]
 
 function SidebarItem({ item, activeView, onSelect }) {
