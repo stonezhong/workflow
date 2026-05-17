@@ -65,3 +65,9 @@ export function createWorkflow(details) {
     body: JSON.stringify(details),
   })
 }
+
+export function restartFailedWorkflow(workflowId) {
+  return request(`/workflows/${workflowId}/restart`, {
+    method: 'POST',
+  })
+}

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { restartFailedWorkflow } from '../../ZWorkflowClient'
 import DagView from './DagView'
 
 export const STATE_LABEL = { 
@@ -151,11 +152,15 @@ function FoldableJson({ value, label }) {
   )
 }
 
-export default function Workflow({ workflow }) {
+export default function Workflow({ workflow, onWorkflowUpdated }) {
+  const [restartError, setRestartError] = useState(null)
+  const [isRestarting, setIsRestarting] = useState(false)
+
   if (!workflow) return null
 
   const stateLabel = STATE_LABEL[workflow.state] ?? workflow.state
   const stateColor = STATE_COLOR[workflow.state] ?? '#64748b'
+  const canRestart = workflow.state === 5
   const steps = workflow.steps ?? []
   const stepDeps = workflow.workflow_def?.step_deps ?? []
   const dagNodes = steps.map(step => {
@@ -167,16 +172,40 @@ export default function Workflow({ workflow }) {
       color: STATE_COLOR[state] ?? '#f8fafc',
     }
   })
+
+  const handleRestart = () => {
+    setRestartError(null)
+    setIsRestarting(true)
+
+    restartFailedWorkflow(workflow.id)
+      .then(updatedWorkflow => {
+        onWorkflowUpdated?.(updatedWorkflow)
+      })
+      .catch(err => setRestartError(err.message))
+      .finally(() => setIsRestarting(false))
+  }
+
   return (
     <div className="workflow">
       <div className="def-summary">
-        <span className="def-name">
-          {workflow.title}
-        </span>
         <span className="state-badge" style={{ background: stateColor }}>
           {stateLabel}
         </span>
+        <span className="def-name">
+          {workflow.title}
+        </span>
+        {canRestart && (
+          <button
+            type="button"
+            className="secondary-button workflow-restart-button"
+            onClick={handleRestart}
+            disabled={isRestarting}
+          >
+            {isRestarting ? 'Restarting...' : 'Restart'}
+          </button>
+        )}
       </div>
+      {restartError && <div className="form-error workflow-action-error">{restartError}</div>}
 
       <table className="detail-table def-details">
         <tbody>

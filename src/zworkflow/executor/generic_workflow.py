@@ -81,6 +81,8 @@ class GenericWorkflow:
     @workflow.run
     async def run(self, workflow_id: str) -> None:
         ####################################################################
+        # Temporal Worker会调用这个函数来执行一个 Workflow
+        #
         # Temporal的workflow ID是随机产生的，workflow_id是zworkflow的workflow ID
         # 进入这个函数的时候，应该假设workflow的状态是RUN_REQUESTED
         ####################################################################
@@ -105,7 +107,7 @@ class GenericWorkflow:
                     return
                 if not workflow_service.set_state_running(zworkflow.id, session=session):
                     # 无法切换成RUNNING状态，毋需继续
-                    transaction.rollback()
+                    transaction.rollback() # 因为我们没有扔出异常，所以要主动rollback transaction
                     logger.info(f"GenericWorkflow.run({workflow_id}): exit, cannot change workflow state to running")
                     return
         
@@ -146,6 +148,7 @@ class GenericWorkflow:
                 if not shall_quit:
                     logger.info(f"GenericWorkflow.run({workflow_id}): workflow is not yet done.")
                     await asyncio.sleep(5)
+                    # 等待5秒后重新检查workflow状态，注意，重新检查的时候，database session是新的。
                     continue
 
                 logger.info(f"GenericWorkflow.run({workflow_id}): workflow worker decided to quit and set state to {next_workflow_state}")
@@ -163,18 +166,29 @@ class GenericWorkflow:
 
             # 运行这些步骤
             # 需要同时运行多个步骤，而不是依次运行
+            results = []
             for step_key in sorted(list(run_candidate_step_keys)):
                 logger.info(f"GenericWorkflow.run({workflow_id}): execute step: {step_key}")
                 step = steps_by_key[step_key]
                 with Session(engine) as session:
                     with session.begin() as transaction:
                         workflow_service.prepare_execute_step(workflow_id, step, session=session)
-                ret = await workflow.execute_activity(
+                
+                # try:
+                results.append(workflow.execute_activity(
                     generic_activity,
                     step.id,
                     schedule_to_close_timeout=timedelta(seconds=10),
                     retry_policy=RetryPolicy(maximum_attempts=1),
-                )
+                ))
+                logger.info(f"GenericWorkflow.run({workflow_id}): activity invoked successfully")
+
+                # except Exception as e:
+                #     logger.exception(f"GenericWorkflow.run({workflow_id}): failed to call activity", e)
+                #     # Workflow驱动器不要失败，但是最后会将workflow设置成失败状态退出
+            
+            returns = await asyncio.gather(*results, return_exceptions=True)
+            # maybe log bit debug info here
 
         logger.info(f"GenericWorkflow.run({workflow_id}): exit")
         return

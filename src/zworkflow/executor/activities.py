@@ -73,6 +73,7 @@ async def generic_activity(step_id: str) -> None:
             with session.begin() as transaction:
                 workflow_service.set_task_state_failed(task.id, session=session)
         logger.error(f"generic_activity({step_id}): task failed", e)
+        raise e
 
 
 

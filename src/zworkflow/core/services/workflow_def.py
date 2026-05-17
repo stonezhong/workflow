@@ -218,6 +218,54 @@ class WorkflowService:
         return workflow
 
     ############################################################
+    # 重试一个失败的Workflow
+    # 可能扔出的异常
+    #     BadInput
+    #     WorkflowNotFound
+    ############################################################
+    async def restart_failed_workflow(self, workflow_id:str, *, session:Session) -> Workflow:
+        logger.debug(f"restart_failed_workflow: entre, workflow_id={workflow_id}")
+
+        workflow_dto = self.workflow_dao.get(workflow_id, session=session)
+        if workflow_dto is None:
+            logger.debug(f"restart_failed_workflow: exit, workflow(id={workflow_id}) does not exist")
+            raise WorkflowNotFound
+
+        if workflow_dto.state != WorkflowState.FAILED:
+            logger.debug(f"restart_failed_workflow: exit, workflow(id={workflow_id}) is not failed")
+            raise BadInput(f"restart_failed_workflow: exit, workflow(id={workflow_id}) is not failed")
+
+
+        # 将Workflow状态设置成CREATED
+        # 将全部失败的任务的状态设置成CREATED        
+        for step_dto in workflow_dto.steps:
+            if step_dto.step_def.type == StepDefType.TASK and step_dto.invoke_task is not None and step_dto.invoke_task.state == TaskState.FAILED:
+                    step_dto.invoke_task = None
+                    logger.debug(f"restart_failed_workflow: workflow_id={workflow_id}, clear task for step(id={step_dto.id}, name={step_dto.step_def.key})")
+                    continue
+            if step_dto.step_def.type == StepDefType.WORKFLOW:
+                pass
+                continue
+        workflow_dto.state = WorkflowState.RUN_REQUESTED
+        logger.debug(f"restart_failed_workflow: set workflow(workflow_id={workflow_id}) state to RUN_REQUSTED")
+        session.flush()
+
+        workflow = self.mapper.workflow_to_model(self.workflow_dao.get(workflow_id, session=session))
+
+        client = await Client.connect(f"{app_config.temporal.host}:{app_config.temporal.port}")
+        temporal_workflow_id = str(uuid.uuid4())
+        await client.start_workflow(
+            "GenericWorkflow",
+            workflow.id,
+            id=temporal_workflow_id,
+            task_queue=app_config.temporal.queue_name,
+        )
+        logger.debug(f"WorkflowService.restart_failed_workflow: notified temporal to start workflow in queue {app_config.temporal.queue_name}, workflow id = {workflow.id}, temporal workflow id = {temporal_workflow_id}")
+
+        logger.debug(f"restart_failed_workflow: exit")
+        return workflow
+
+    ############################################################
     # 创建一个Workflow
     # 可能扔出的异常
     #     BadInput

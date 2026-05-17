@@ -203,6 +203,24 @@ async def workflow_create(create_workflow_details:APICreateWorkflowDetails, sess
     )
     return api_mapper.workflow_to_api(workflow)
 
+@app.post(
+    "/workflows/{workflow_id}/restart",
+    status_code=200,
+    tags = ["Workflow"],
+    summary="Restart a failed workflow",
+    description = "Restart a failed workflow"
+)
+async def restart_failed_workflow(workflow_id:str, session: Session = Depends(get_db)) -> APIWorkflow:
+    try:
+        workflow = await workflow_service.restart_failed_workflow(
+            workflow_id, session=session
+        )
+        return api_mapper.workflow_to_api(workflow)
+    except core_exceptions.BadInput as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except core_exceptions.WorkflowNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
 @app.get(
     "/workflows/{workflow_id}",
     tags = ["Workflow"],

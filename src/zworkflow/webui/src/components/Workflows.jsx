@@ -65,6 +65,17 @@ export default function Workflows() {
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
 
+  const updateWorkflow = workflow => {
+    setWorkflows(currentWorkflows => {
+      const index = currentWorkflows.findIndex(item => item.id === workflow.id)
+      if (index === -1) return [workflow, ...currentWorkflows]
+
+      const nextWorkflows = [...currentWorkflows]
+      nextWorkflows[index] = workflow
+      return nextWorkflows
+    })
+  }
+
   if (error) {
     return (
       <div>
@@ -107,7 +118,7 @@ export default function Workflows() {
         <div className="def-list">
           {visibleWorkflows.map(workflow => (
             <div key={workflow.id} className="def-list-item">
-              <Workflow workflow={workflow} />
+              <Workflow workflow={workflow} onWorkflowUpdated={updateWorkflow} />
             </div>
           ))}
         </div>

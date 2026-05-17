@@ -552,6 +552,14 @@
   font-weight: 600;
 }
 
+.workflow-restart-button {
+  margin-left: auto;
+}
+
+.workflow-action-error {
+  margin: 1rem 0 0;
+}
+
 .workflow-time-list {
   color: var(--color-muted);
   display: flex;
