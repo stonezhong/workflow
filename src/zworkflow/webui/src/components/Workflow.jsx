@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { restartFailedWorkflow } from '../../ZWorkflowClient'
 import DagView from './DagView'
+import PopupPanel from './PopupPanel'
+import StepDefView from './StepDefView'
+import TaskDef from './TaskDef'
 
 export const STATE_LABEL = { 
     1: 'Created', 
@@ -60,6 +63,10 @@ function stepInvokeLabel(step) {
     return `${workflowDef.name} v${workflowDef.version}`
   }
   return '—'
+}
+
+function getStepInvokeTaskDef(step) {
+  return step.invoke_task?.task_def ?? step.step_def?.invoke_task_def ?? null
 }
 
 function getStepTimeCreated(step) {
@@ -127,8 +134,7 @@ function getStepState(step) {
     return null;
 }
 
-function FoldableJson({ value, label }) {
-  const [isExpanded, setIsExpanded] = useState(false)
+function JsonButton({ value, label, onShow }) {
   const hasValue = value !== undefined
 
   if (!hasValue) {
@@ -139,15 +145,14 @@ function FoldableJson({ value, label }) {
     <div className="foldable-schema">
       <button
         type="button"
-        className="schema-toggle"
-        aria-expanded={isExpanded}
-        onClick={() => setIsExpanded(value => !value)}
+        className="schema-toggle icon-button json-view-button"
+        aria-haspopup="dialog"
+        aria-label={`Show ${label}`}
+        title={`Show ${label}`}
+        onClick={() => onShow({ value, label })}
       >
-        {isExpanded ? `Hide ${label}` : `Show ${label}`}
+        <span className="magnifier-icon" aria-hidden="true" />
       </button>
-      {isExpanded && (
-        <pre className="json-block schema-block">{JSON.stringify(value, null, 2)}</pre>
-      )}
     </div>
   )
 }
@@ -155,6 +160,9 @@ function FoldableJson({ value, label }) {
 export default function Workflow({ workflow, onWorkflowUpdated }) {
   const [restartError, setRestartError] = useState(null)
   const [isRestarting, setIsRestarting] = useState(false)
+  const [selectedJson, setSelectedJson] = useState(null)
+  const [selectedStepDef, setSelectedStepDef] = useState(null)
+  const [selectedTaskDef, setSelectedTaskDef] = useState(null)
 
   if (!workflow) return null
 
@@ -183,6 +191,16 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
       })
       .catch(err => setRestartError(err.message))
       .finally(() => setIsRestarting(false))
+  }
+
+  const showStepDef = (event, stepDef) => {
+    event.preventDefault()
+    setSelectedStepDef(stepDef)
+  }
+
+  const showTaskDef = (event, taskDef) => {
+    event.preventDefault()
+    setSelectedTaskDef(taskDef)
   }
 
   return (
@@ -248,7 +266,7 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
           {workflow.input && (
             <tr>
               <td className="detail-label">Input</td>
-              <td><FoldableJson value={workflow.input} label="input" /></td>
+              <td><JsonButton value={workflow.input} label="input" onShow={setSelectedJson} /></td>
             </tr>
           )}
         </tbody>
@@ -275,18 +293,40 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
           <tbody>
             {steps.map(step => {
               const stepDef = step.step_def;
+              const taskDef = getStepInvokeTaskDef(step);
+              const invokeLabel = stepInvokeLabel(step);
 
               return (
               <tr key={step.id}>
-                <td><code>{stepDef.key}</code></td>
+                <td>
+                  <a
+                    href={`#step-def-${stepDef.id}`}
+                    className="step-def-link"
+                    onClick={event => showStepDef(event, stepDef)}
+                  >
+                    <code>{stepDef.key}</code>
+                  </a>
+                </td>
                 <td>{stepDef.title}</td>
                 <td>{STEP_TYPE_LABEL[stepDef.type]}</td>
-                <td>{stepInvokeLabel(step)}</td>
+                <td>
+                  {taskDef ? (
+                    <a
+                      href={`#task-def-${taskDef.id}`}
+                      className="step-def-link"
+                      onClick={event => showTaskDef(event, taskDef)}
+                    >
+                      {invokeLabel}
+                    </a>
+                  ) : (
+                    invokeLabel
+                  )}
+                </td>
                 <td>{formatWorkflowTime(getStepTimeCreated(step))}</td>
                 <td>{formatWorkflowTime(getStepTimeStarted(step))}</td>
                 <td>{formatWorkflowTime(getStepTimeEnded(step))}</td>
-                <td><FoldableJson value={getStepInput(step)} label="input" /></td>
-                <td><FoldableJson value={getStepOutput(step)} label="output" /></td>
+                <td><JsonButton value={getStepInput(step)} label="input" onShow={setSelectedJson} /></td>
+                <td><JsonButton value={getStepOutput(step)} label="output" onShow={setSelectedJson} /></td>
               </tr>
               )
             })}
@@ -301,6 +341,38 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
           connections={stepDeps.map(dep => ({source: dep.source_step_def_key, destination: dep.destination_step_def_key}))}
         />
       </div>
+
+      {selectedJson && (
+        <PopupPanel
+          title={selectedJson.label}
+          className="json-popup"
+          onClose={() => setSelectedJson(null)}
+        >
+          <pre className="json-block schema-block">{JSON.stringify(selectedJson.value, null, 2)}</pre>
+        </PopupPanel>
+      )}
+
+      {selectedStepDef && (
+        <PopupPanel
+          title="Step Definition"
+          ariaLabel={`Step definition ${selectedStepDef.key}`}
+          className="step-def-popup"
+          onClose={() => setSelectedStepDef(null)}
+        >
+          <StepDefView stepDef={selectedStepDef} />
+        </PopupPanel>
+      )}
+
+      {selectedTaskDef && (
+        <PopupPanel
+          title="Task Definition"
+          ariaLabel={`Task definition ${selectedTaskDef.name}`}
+          className="task-def-popup"
+          onClose={() => setSelectedTaskDef(null)}
+        >
+          <TaskDef taskDef={selectedTaskDef} defaultExpanded />
+        </PopupPanel>
+      )}
     </div>
   )
 }

@@ -232,9 +232,99 @@
   outline-offset: 2px;
 }
 
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.json-view-button {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+}
+
+.magnifier-icon {
+  position: relative;
+  display: inline-block;
+  width: 0.85rem;
+  height: 0.85rem;
+  border: 2px solid currentColor;
+  border-radius: 999px;
+}
+
+.magnifier-icon::after {
+  content: "";
+  position: absolute;
+  width: 0.42rem;
+  height: 2px;
+  right: -0.36rem;
+  bottom: -0.18rem;
+  background: currentColor;
+  border-radius: 999px;
+  transform: rotate(45deg);
+  transform-origin: left center;
+}
+
 .schema-block {
   margin-top: 0.5rem;
   max-height: 320px;
+}
+
+.step-def-link {
+  color: var(--color-primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.step-def-link:hover {
+  text-decoration: underline;
+}
+
+.step-def-link:focus-visible {
+  outline: 2px solid var(--color-sidebar-active);
+  outline-offset: 2px;
+}
+
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.48);
+  padding: 1.5rem;
+}
+
+.popup-panel {
+  width: min(960px, 100%);
+  max-height: min(760px, calc(100dvh - 3rem));
+  overflow: auto;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.28);
+  padding: 1.25rem;
+}
+
+.popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.popup-header h3 {
+  color: var(--color-text);
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.popup-close-button {
+  flex-shrink: 0;
 }
 
 /* ── Forms ── */
@@ -480,6 +570,13 @@
 .workflow-steps-table th:nth-child(7),
 .workflow-steps-table td:nth-child(7) {
   width: 200px;
+}
+
+.workflow-steps-table th:nth-child(8),
+.workflow-steps-table td:nth-child(8),
+.workflow-steps-table th:nth-child(9),
+.workflow-steps-table td:nth-child(9) {
+  width: 80px;
 }
 
 .compact-edit-table select {

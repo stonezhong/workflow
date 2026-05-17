@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import DagView from './DagView'
+import PopupPanel from './PopupPanel'
+import StepDefView from './StepDefView'
 
 const STEP_TYPE_LABEL = { 1: 'Task', 2: 'Workflow' }
 
@@ -42,8 +44,14 @@ function FoldableSchema({ schema }) {
 
 export default function WorkflowDefinition({ workflowDef }) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const [selectedStepDef, setSelectedStepDef] = useState(null)
 
   if (!workflowDef) return null
+
+  const showStepDef = (event, stepDef) => {
+    event.preventDefault()
+    setSelectedStepDef(stepDef)
+  }
 
   return (
     <div className="wf-def">
@@ -109,7 +117,15 @@ export default function WorkflowDefinition({ workflowDef }) {
               <tbody>
                 {workflowDef.steps.map(step => (
                   <tr key={step.id}>
-                    <td><code>{step.key}</code></td>
+                    <td>
+                      <a
+                        href={`#step-def-${step.id}`}
+                        className="step-def-link"
+                        onClick={event => showStepDef(event, step)}
+                      >
+                        <code>{step.key}</code>
+                      </a>
+                    </td>
                     <td>{step.title}</td>
                     <td>{STEP_TYPE_LABEL[step.type] ?? step.type}</td>
                     <td>{stepInvokeLabel(step)}</td>
@@ -132,6 +148,17 @@ export default function WorkflowDefinition({ workflowDef }) {
               />
             </div>
         </>
+      )}
+
+      {selectedStepDef && (
+        <PopupPanel
+          title="Step Definition"
+          ariaLabel={`Step definition ${selectedStepDef.key}`}
+          className="step-def-popup"
+          onClose={() => setSelectedStepDef(null)}
+        >
+          <StepDefView stepDef={selectedStepDef} />
+        </PopupPanel>
       )}
     </div>
   )
