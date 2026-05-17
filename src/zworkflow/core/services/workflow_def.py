@@ -14,7 +14,7 @@ from temporalio.client import Client
 from zworkflow.app_config import AppConfig
 from zworkflow.core.models import Schema, WorkflowDef, TaskDef, StepDef, StepDefDep, CreateWorkflowDefDetails, \
     CreateTaskDefDetails, Workflow, CreateWorkflowDetails, CreateSchemaDetails, Step, Task
-from zworkflow.core.exceptions import WorkflowDefNotFound, TaskDefNotFound, BadInput, WorkflowNotFound, SchemaNotFound, StepDefNotFound, TaskNotFound
+from zworkflow.core.exceptions import WorkflowDefNotFound, BadInput, WorkflowNotFound, SchemaNotFound
 
 from zworkflow.dal.dtos import SchemaDTO, TaskDefDTO, WorkflowDefDTO, StepDefDTO, StepDefDepDTO, WorkflowDTO, TaskDTO, StepDTO
 from zworkflow.dal.dtos import StepDefType, WorkflowState, TaskState
@@ -155,6 +155,7 @@ class WorkflowDefService:
                 title = step.title,
                 description = step.description,
                 input = step.input,
+                is_return_step = step.is_return_step,
                 type = step.type,
                 invoke_task_def_id = None if invoke_task_def is None else invoke_task_def.id,
                 invoke_workflow_def_id = None if invoke_workflow_def is None else invoke_workflow_def.id              
@@ -334,6 +335,12 @@ class WorkflowService:
     ############################################################
     def set_state_failed(self, workflow_id:str, *, session:Session) -> bool:
         return self.workflow_dao.set_state_failed(workflow_id, session=session)
+
+    ############################################################
+    # 设置一个Workflow的output值
+    ############################################################
+    def set_output(self, workflow_id:str, output:dict|None, *, session:Session) -> None:
+        self.workflow_dao.set_output(workflow_id, output, session=session)
 
     ############################################################
     # 通过id来获得一个Workflow
@@ -516,6 +523,7 @@ class Mapper:
             title = step_def_dto.title,
             type = step_def_dto.type,
             input = step_def_dto.input,
+            is_return_step = step_def_dto.is_return_step,
             invoke_task_def = self.task_def_to_model(step_def_dto.invoke_task_def),
             invoke_workflow_def = self.workflow_def_to_model(step_def_dto.invoke_workflow_def)
         )

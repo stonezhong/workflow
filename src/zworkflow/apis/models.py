@@ -24,6 +24,7 @@ class APIStepDef(BaseModel):
     title: str
     type: StepDefType
     input: str                  # 表达式
+    is_return_step: bool
     invoke_task_def: APITaskDef|None = None
     invoke_workflow_def: APIWorkflowDef|None = None
 
@@ -80,6 +81,7 @@ class APICreateWorkflowDefStepDetails(BaseModel):
     title: str
     type: StepDefType
     input: str
+    is_return_step: bool
     invoke_task_def_nv:     APINameAndVersion|None = None
     invoke_workflow_def_nv: APINameAndVersion|None = None
 
@@ -97,6 +99,7 @@ class APIWorkflow(BaseModel):
     description: str
     title: str
     input: dict | None = None
+    output: dict | None = None
     state: WorkflowState
     steps: List[APIStep] = Field(default_factory=list)
     time_created: datetime

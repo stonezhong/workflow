@@ -65,6 +65,8 @@ async def generic_activity(step_id: str) -> None:
         with Session(engine) as session:
             with session.begin() as transaction:
                 workflow_service.set_task_state_succeeded(task.id, output, session=session)
+                if step.step_def.is_return_step:
+                    workflow_service.set_output(zworkflow.id, output, session=session)
                 # TODO: save output
         logger.info(f"generic_activity({step_id}): task succeeded")
         return None

@@ -97,6 +97,18 @@ export default function StepDefView({ stepDef }) {
               )}
             </td>
           </tr>
+          <tr>
+            <td className="detail-label">Return</td>
+            <td>
+              <span
+                className={stepDef.is_return_step ? 'status-icon status-icon-true' : 'status-icon status-icon-false'}
+                aria-label={stepDef.is_return_step ? 'Return true' : 'Return false'}
+                role="img"
+              >
+                {stepDef.is_return_step ? '✅' : '❌'}
+              </span>
+            </td>
+          </tr>
         </tbody>
       </table>
 

@@ -265,8 +265,14 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
           </tr>
           {workflow.input && (
             <tr>
-              <td className="detail-label">Input</td>
+              <td className="detail-label">Input1</td>
               <td><JsonButton value={workflow.input} label="input" onShow={setSelectedJson} /></td>
+            </tr>
+          )}
+          {workflow.output && (
+            <tr>
+              <td className="detail-label">Output</td>
+              <td><JsonButton value={workflow.output} label="output" onShow={setSelectedJson} /></td>
             </tr>
           )}
         </tbody>

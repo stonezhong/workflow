@@ -5,7 +5,7 @@ import uuid
 from enum import Enum
 from datetime import datetime, timezone
 
-from sqlalchemy import String, UniqueConstraint, ForeignKey, JSON, DateTime
+from sqlalchemy import String, UniqueConstraint, ForeignKey, JSON, DateTime, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -117,6 +117,9 @@ class StepDefDTO(Base):
 
     # the input of a step, could be an expression
     input: Mapped[str]
+
+    # if True, the output of the step will be copied to workflow's output
+    is_return_step: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # if type is Task
     invoke_task_def_id: Mapped[str | None] = mapped_column(ForeignKey("task_def.id"), nullable=True, default=None)

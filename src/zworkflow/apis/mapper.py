@@ -44,6 +44,7 @@ class APIMapper:
             title = step_dep.title,
             type = step_dep.type,
             input = step_dep.input,
+            is_return_step = step_dep.is_return_step,
             invoke_task_def = self.task_def_to_api(step_dep.invoke_task_def),
             invoke_workflow_def = self.workflow_def_to_api(step_dep.invoke_workflow_def)
         )
@@ -62,6 +63,7 @@ class APIMapper:
             description = workflow.description,
             title = workflow.title,
             input = workflow.input,
+            output = workflow.output,
             state = workflow.state,
             steps = [self.step_to_api(step) for step in workflow.steps],
             time_created = workflow.time_created,
@@ -124,6 +126,7 @@ class APIMapper:
             title = create_workflow_def_step_details.title,
             type = create_workflow_def_step_details.type,
             input = create_workflow_def_step_details.input,
+            is_return_step = create_workflow_def_step_details.is_return_step,
             invoke_task_def_nv = self.name_and_version_to_model(create_workflow_def_step_details.invoke_task_def_nv),
             invoke_workflow_def_nv = self.name_and_version_to_model(create_workflow_def_step_details.invoke_workflow_def_nv)
         )

@@ -77,6 +77,15 @@ class WorkflowDAO:
         session.flush()
         return result.rowcount > 0
 
+    # 设置一个workflow的output
+    def set_output(self, workflow_id:str, output:dict|None, *, session:Session) -> None:
+        session.execute(
+            update(WorkflowDTO)
+            .where(WorkflowDTO.id == workflow_id)
+            .values(output=output)
+        )
+        session.flush()
+
     # 将一个Task状态设置成RUNNING
     def set_task_state_running(self, task_id:str, *, session:Session) -> bool:
         result = session.execute(

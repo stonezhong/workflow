@@ -15,6 +15,7 @@ function createEmptyStep() {
     input: '',
     task_def_id: '',
     workflow_def_id: '',
+    is_return_step: false,
   }
 }
 
@@ -45,6 +46,7 @@ function isStepEmpty(step) {
     && !step.input.trim()
     && !step.task_def_id
     && !step.workflow_def_id
+    && !step.is_return_step
 }
 
 export default function NewWorkflowDefinition() {
@@ -132,6 +134,7 @@ export default function NewWorkflowDefinition() {
         title: step.title.trim(),
         type: step.type,
         input: step.input,
+        is_return_step: step.is_return_step,
       }
 
       if (step.type === 1) {
@@ -372,6 +375,15 @@ export default function NewWorkflowDefinition() {
                     rows={4}
                     required={!isDraftStep}
                   />
+                </label>
+
+                <label className="checkbox-field step-return-field">
+                  <input
+                    type="checkbox"
+                    checked={step.is_return_step}
+                    onChange={event => updateStep(index, 'is_return_step', event.target.checked)}
+                  />
+                  <span>Return</span>
                 </label>
 
                 {isDraftStep && (

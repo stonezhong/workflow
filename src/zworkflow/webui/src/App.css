@@ -512,6 +512,25 @@
   font-size: 0.9rem;
 }
 
+.checkbox-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.step-return-field {
+  margin-top: 0.75rem;
+}
+
+.status-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.status-icon-false {
+  color: #dc2626;
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;

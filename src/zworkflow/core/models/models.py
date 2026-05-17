@@ -29,6 +29,7 @@ class StepDef(BaseModel):
     title: str
     type: StepDefType
     input: str                  # 表达式
+    is_return_step: bool
     invoke_task_def: TaskDef|None = None
     invoke_workflow_def: WorkflowDef|None = None
 
@@ -97,6 +98,7 @@ class CreateWorkflowDefStepDetails(BaseModel):
     title: str
     type: StepDefType
     input: str
+    is_return_step: bool
     invoke_task_def_nv:     NameAndVersion|None = None
     invoke_workflow_def_nv: NameAndVersion|None = None
 
