@@ -1,7 +1,3 @@
-import { useState } from 'react'
-import PopupPanel from './PopupPanel'
-import TaskDef from './TaskDef'
-
 const STEP_TYPE_LABEL = { 1: 'Task', 2: 'Workflow' }
 
 function emptyValue(value) {
@@ -29,18 +25,26 @@ function invokeLabel(stepDef) {
 }
 
 export default function StepDefView({ stepDef }) {
-  const [selectedTaskDef, setSelectedTaskDef] = useState(null)
-
   if (!stepDef) return null
 
   const typeLabel = STEP_TYPE_LABEL[stepDef.type] ?? stepDef.type
   const invokedLabel = invokeLabel(stepDef)
   const invokedTaskDef = stepDef.invoke_task_def
-
-  const showTaskDef = event => {
-    event.preventDefault()
-    setSelectedTaskDef(invokedTaskDef)
-  }
+  const invokedWorkflowDef = stepDef.invoke_workflow_def
+  const invokedTaskDefUrl = invokedTaskDef
+    ? `#${new URLSearchParams({
+      activeView: 'task-definitions',
+      taskDefId: invokedTaskDef.id,
+      taskDefView: 'detail',
+    }).toString()}`
+    : null
+  const invokedWorkflowDefUrl = invokedWorkflowDef
+    ? `#${new URLSearchParams({
+      activeView: 'workflow-definitions',
+      workflowDefId: invokedWorkflowDef.id,
+      workflowDefView: 'detail',
+    }).toString()}`
+    : null
 
   return (
     <div className="step-def-view">
@@ -76,9 +80,15 @@ export default function StepDefView({ stepDef }) {
             <td>
               {invokedTaskDef ? (
                 <a
-                  href={`#task-def-${invokedTaskDef.id}`}
+                  href={invokedTaskDefUrl}
                   className="step-def-link"
-                  onClick={showTaskDef}
+                >
+                  {invokedLabel}
+                </a>
+              ) : invokedWorkflowDef ? (
+                <a
+                  href={invokedWorkflowDefUrl}
+                  className="step-def-link"
                 >
                   {invokedLabel}
                 </a>
@@ -111,17 +121,6 @@ export default function StepDefView({ stepDef }) {
           </tr>
         </tbody>
       </table>
-
-      {selectedTaskDef && (
-        <PopupPanel
-          title="Task Definition"
-          ariaLabel={`Task definition ${selectedTaskDef.name}`}
-          className="task-def-popup"
-          onClose={() => setSelectedTaskDef(null)}
-        >
-          <TaskDef taskDef={selectedTaskDef} defaultExpanded />
-        </PopupPanel>
-      )}
     </div>
   )
 }

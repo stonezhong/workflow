@@ -134,3 +134,12 @@ class WorkflowDAO:
         session.flush()
         return result.rowcount > 0
 
+    def set_step_workflow(self, step_id:str, workflow_id:str, *, session:Session) -> bool:
+        result = session.execute(
+            update(StepDTO)
+            .where(StepDTO.id == step_id)
+            .values(invoke_workflow_id=workflow_id)
+        )
+        session.flush()
+        return result.rowcount > 0
+

@@ -582,19 +582,30 @@
   font-weight: 600;
 }
 
+.task-def-list-table th:first-child,
+.task-def-list-table td:first-child,
+.task-def-list-table th:nth-child(2),
+.task-def-list-table td:nth-child(2),
+.workflow-def-list-table th:first-child,
+.workflow-def-list-table td:first-child,
+.workflow-def-list-table th:nth-child(2),
+.workflow-def-list-table td:nth-child(2) {
+  width: 200px;
+}
+
+.workflow-steps-table th:nth-child(3),
+.workflow-steps-table td:nth-child(3),
+.workflow-steps-table th:nth-child(4),
+.workflow-steps-table td:nth-child(4),
 .workflow-steps-table th:nth-child(5),
-.workflow-steps-table td:nth-child(5),
+.workflow-steps-table td:nth-child(5) {
+  width: 200px;
+}
+
 .workflow-steps-table th:nth-child(6),
 .workflow-steps-table td:nth-child(6),
 .workflow-steps-table th:nth-child(7),
 .workflow-steps-table td:nth-child(7) {
-  width: 200px;
-}
-
-.workflow-steps-table th:nth-child(8),
-.workflow-steps-table td:nth-child(8),
-.workflow-steps-table th:nth-child(9),
-.workflow-steps-table td:nth-child(9) {
   width: 80px;
 }
 
@@ -642,6 +653,17 @@
   cursor: pointer;
   font: inherit;
   padding: 0;
+}
+
+.task-def-summary-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.task-def-summary-row .task-def-summary {
+  flex: 1;
+  min-width: 0;
 }
 
 .task-def-summary:focus-visible,

@@ -32,15 +32,17 @@ export default function TaskDef({ taskDef, defaultExpanded = false }) {
 
   return (
     <div className="task-def">
-      <button
-        type="button"
-        className="task-def-summary"
-        aria-expanded={isExpanded}
-        onClick={() => setIsExpanded(value => !value)}
-      >
-        <span className="task-def-name">{taskDef.name}</span>
-        <span className="task-def-version">v{taskDef.version}</span>
-      </button>
+      <div className="task-def-summary-row">
+        <button
+          type="button"
+          className="task-def-summary"
+          aria-expanded={isExpanded}
+          onClick={() => setIsExpanded(value => !value)}
+        >
+          <span className="task-def-name">{taskDef.name}</span>
+          <span className="task-def-version">v{taskDef.version}</span>
+        </button>
+      </div>
 
       {isExpanded && (
         <table className="detail-table task-def-details">

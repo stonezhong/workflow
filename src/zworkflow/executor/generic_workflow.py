@@ -7,6 +7,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 import asyncio
+import uuid
 from datetime import timedelta
 from temporalio import workflow
 from temporalio.common import RetryPolicy
@@ -173,20 +174,28 @@ class GenericWorkflow:
                 with Session(engine) as session:
                     with session.begin() as transaction:
                         workflow_service.prepare_execute_step(workflow_id, step, session=session)
+                        # 重新加载，因为prepare_execute_step已经让step发生变化了
+                        # 虽然session.flush()会刷新dto，但是step式model对象，不会自动跟新
+                        _, step = workflow_service.get_step(step.id, session=session) 
                 
                 # try:
-                results.append(workflow.execute_activity(
-                    generic_activity,
-                    step.id,
-                    schedule_to_close_timeout=timedelta(seconds=10),
-                    retry_policy=RetryPolicy(maximum_attempts=1),
-                ))
-                logger.info(f"GenericWorkflow.run({workflow_id}): activity invoked successfully")
-
-                # except Exception as e:
-                #     logger.exception(f"GenericWorkflow.run({workflow_id}): failed to call activity", e)
-                #     # Workflow驱动器不要失败，但是最后会将workflow设置成失败状态退出
-            
+                if step.step_def.type == StepDefType.TASK:
+                    results.append(workflow.execute_activity(
+                        generic_activity,
+                        step.id,
+                        schedule_to_close_timeout=timedelta(hours=1),
+                        retry_policy=RetryPolicy(maximum_attempts=1),
+                    ))
+                    logger.info(f"GenericWorkflow.run({workflow_id}): activity invoked successfully")
+                elif step.step_def.type == StepDefType.WORKFLOW:
+                    child_temporal_workflow_id = str(uuid.uuid4())
+                    results.append(workflow.execute_child_workflow(
+                        "GenericWorkflow",
+                        step.invoke_workflow.id,
+                        id=child_temporal_workflow_id,
+                        retry_policy=RetryPolicy(maximum_attempts=1)
+                    ))
+                    logger.info(f"GenericWorkflow.run({workflow_id}): workflow invoked successfully")           
             returns = await asyncio.gather(*results, return_exceptions=True)
             # maybe log bit debug info here
 

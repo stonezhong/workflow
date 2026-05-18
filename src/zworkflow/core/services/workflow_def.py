@@ -10,10 +10,11 @@ import uuid
 from typing import List
 from sqlalchemy.orm import Session
 from temporalio.client import Client
+from temporalio.common import RetryPolicy
 
 from zworkflow.app_config import AppConfig
 from zworkflow.core.models import Schema, WorkflowDef, TaskDef, StepDef, StepDefDep, CreateWorkflowDefDetails, \
-    CreateTaskDefDetails, Workflow, CreateWorkflowDetails, CreateSchemaDetails, Step, Task
+    CreateTaskDefDetails, Workflow, CreateWorkflowDetails, CreateSchemaDetails, Step, Task, NameAndVersion
 from zworkflow.core.exceptions import WorkflowDefNotFound, BadInput, WorkflowNotFound, SchemaNotFound
 
 from zworkflow.dal.dtos import SchemaDTO, TaskDefDTO, WorkflowDefDTO, StepDefDTO, StepDefDepDTO, WorkflowDTO, TaskDTO, StepDTO
@@ -145,7 +146,7 @@ class WorkflowDefService:
                 invoke_workflow_def = self.workflow_def_dao.get_by_name_and_version(
                     step.invoke_workflow_def_nv.name,
                     step.invoke_workflow_def_nv.version,
-                    sesison=session
+                    session=session
                 )
                 if invoke_workflow_def is None:
                     raise BadInput(f"step {step.key}: workflow def not found for {step.invoke_workflow_def_nv.name}:{step.invoke_workflow_def_nv.version}")
@@ -214,6 +215,7 @@ class WorkflowService:
             workflow.id,
             id=temporal_workflow_id,
             task_queue=app_config.temporal.queue_name,
+            retry_policy=RetryPolicy(maximum_attempts=1)
         )
         logger.debug(f"WorkflowService.start_workflow: notified temporal to start workflow in queue {app_config.temporal.queue_name}, workflow id = {workflow.id}, temporal workflow id = {temporal_workflow_id}")
         return workflow
@@ -241,11 +243,12 @@ class WorkflowService:
         # 将全部失败的任务的状态设置成CREATED        
         for step_dto in workflow_dto.steps:
             if step_dto.step_def.type == StepDefType.TASK and step_dto.invoke_task is not None and step_dto.invoke_task.state == TaskState.FAILED:
-                    step_dto.invoke_task = None
-                    logger.debug(f"restart_failed_workflow: workflow_id={workflow_id}, clear task for step(id={step_dto.id}, name={step_dto.step_def.key})")
-                    continue
-            if step_dto.step_def.type == StepDefType.WORKFLOW:
-                pass
+                step_dto.invoke_task = None
+                logger.debug(f"restart_failed_workflow: workflow_id={workflow_id}, clear task for step(id={step_dto.id}, name={step_dto.step_def.key})")
+                continue
+            if step_dto.step_def.type == StepDefType.WORKFLOW and step_dto.invoke_workflow is not None and step_dto.invoke_workflow.state == WorkflowState.FAILED:
+                step_dto.invoke_workflow = None
+                logger.debug(f"restart_failed_workflow: workflow_id={workflow_id}, clear task for step(id={step_dto.id}, name={step_dto.step_def.key})")
                 continue
         workflow_dto.state = WorkflowState.RUN_REQUESTED
         logger.debug(f"restart_failed_workflow: set workflow(workflow_id={workflow_id}) state to RUN_REQUSTED")
@@ -419,10 +422,19 @@ class WorkflowService:
             )
             logger.debug(f"WorkflowService.prepare_execute_step: workflow_id={workflow_id}, step={step.id}, step_key={step.step_def.key}, task({task_dto.id}) is created")
             self.workflow_dao.set_step_task(step.id, task_dto.id, session=session)
-            # caller may need to reload step since it has been changed
-
         elif step.step_def.type == StepDefType.WORKFLOW:
-            raise NotImplementedError()
+            create_workflow_details = CreateWorkflowDetails(
+                workflow_def_nv = NameAndVersion(
+                    name = step.step_def.invoke_workflow_def.name,
+                    version = step.step_def.invoke_workflow_def.version,
+                ),
+                description = f"{workflow.title}/{step.step_def.key}",
+                title = f"{workflow.title}/{step.step_def.key}",
+                input = step_input_value
+            )
+            workflow = self.create_workflow_in_db(create_workflow_details, session=session)
+            logger.debug(f"WorkflowService.prepare_execute_step: workflow_id={workflow_id}, step={step.id}, step_key={step.step_def.key}, workflow({workflow.id}) is created")
+            self.workflow_dao.set_step_workflow(step.id, workflow.id, session=session)
 
         logger.debug(f"WorkflowService.prepare_execute_step: workflow_id={workflow_id}, step={step.id}, step_key={step.step_def.key}, exit")
 

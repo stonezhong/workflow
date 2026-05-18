@@ -42,8 +42,8 @@ function FoldableSchema({ schema }) {
   )
 }
 
-export default function WorkflowDefinition({ workflowDef }) {
-  const [isExpanded, setIsExpanded] = useState(false)
+export default function WorkflowDefinition({ workflowDef, defaultExpanded = false }) {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded)
   const [selectedStepDef, setSelectedStepDef] = useState(null)
 
   if (!workflowDef) return null

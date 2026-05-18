@@ -3,7 +3,6 @@ import { restartFailedWorkflow } from '../../ZWorkflowClient'
 import DagView from './DagView'
 import PopupPanel from './PopupPanel'
 import StepDefView from './StepDefView'
-import TaskDef from './TaskDef'
 
 export const STATE_LABEL = { 
     1: 'Created', 
@@ -19,8 +18,6 @@ export const STATE_COLOR = {
     4: '#007700',
     5: '#ff0000'
 }
-const STEP_TYPE_LABEL = { 1: 'Task', 2: 'Workflow' }
-
 export function formatWorkflowTime(value) {
   if (!value) return '—'
 
@@ -41,32 +38,6 @@ export function formatWorkflowTime(value) {
     pad(date.getMinutes()),
     pad(date.getSeconds()),
   ].join(':')
-}
-
-function stepInvokeLabel(step) {
-  const stepDef = step.step_def ?? step
-
-  if (step.invoke_task?.task_def) {
-    const taskDef = step.invoke_task.task_def
-    return `${taskDef.name} v${taskDef.version}`
-  }
-  if (step.invoke_workflow?.workflow_def) {
-    const workflowDef = step.invoke_workflow.workflow_def
-    return `${workflowDef.name} v${workflowDef.version}`
-  }
-  if (stepDef.invoke_task_def) {
-    const taskDef = stepDef.invoke_task_def
-    return `${taskDef.name} v${taskDef.version}`
-  }
-  if (stepDef.invoke_workflow_def) {
-    const workflowDef = stepDef.invoke_workflow_def
-    return `${workflowDef.name} v${workflowDef.version}`
-  }
-  return '—'
-}
-
-function getStepInvokeTaskDef(step) {
-  return step.invoke_task?.task_def ?? step.step_def?.invoke_task_def ?? null
 }
 
 function getStepTimeCreated(step) {
@@ -162,7 +133,6 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
   const [isRestarting, setIsRestarting] = useState(false)
   const [selectedJson, setSelectedJson] = useState(null)
   const [selectedStepDef, setSelectedStepDef] = useState(null)
-  const [selectedTaskDef, setSelectedTaskDef] = useState(null)
 
   if (!workflow) return null
 
@@ -196,11 +166,6 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
   const showStepDef = (event, stepDef) => {
     event.preventDefault()
     setSelectedStepDef(stepDef)
-  }
-
-  const showTaskDef = (event, taskDef) => {
-    event.preventDefault()
-    setSelectedTaskDef(taskDef)
   }
 
   return (
@@ -284,14 +249,12 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
       ) : (
         <table className="data-table workflow-steps-table">
           <thead>
-            <tr>
-              <th>Key</th>
-              <th>Title</th>
-              <th>Type</th>
-              <th>Invokes</th>
-              <th>Time Created</th>
-              <th>Time Started</th>
-              <th>Time Ended</th>
+              <tr>
+                <th>Key</th>
+                <th>Title</th>
+                <th>Time Created</th>
+                <th>Time Started</th>
+                <th>Time Ended</th>
               <th>Input</th>
               <th>Output</th>
             </tr>
@@ -299,8 +262,6 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
           <tbody>
             {steps.map(step => {
               const stepDef = step.step_def;
-              const taskDef = getStepInvokeTaskDef(step);
-              const invokeLabel = stepInvokeLabel(step);
 
               return (
               <tr key={step.id}>
@@ -314,20 +275,6 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
                   </a>
                 </td>
                 <td>{stepDef.title}</td>
-                <td>{STEP_TYPE_LABEL[stepDef.type]}</td>
-                <td>
-                  {taskDef ? (
-                    <a
-                      href={`#task-def-${taskDef.id}`}
-                      className="step-def-link"
-                      onClick={event => showTaskDef(event, taskDef)}
-                    >
-                      {invokeLabel}
-                    </a>
-                  ) : (
-                    invokeLabel
-                  )}
-                </td>
                 <td>{formatWorkflowTime(getStepTimeCreated(step))}</td>
                 <td>{formatWorkflowTime(getStepTimeStarted(step))}</td>
                 <td>{formatWorkflowTime(getStepTimeEnded(step))}</td>
@@ -369,16 +316,6 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
         </PopupPanel>
       )}
 
-      {selectedTaskDef && (
-        <PopupPanel
-          title="Task Definition"
-          ariaLabel={`Task definition ${selectedTaskDef.name}`}
-          className="task-def-popup"
-          onClose={() => setSelectedTaskDef(null)}
-        >
-          <TaskDef taskDef={selectedTaskDef} defaultExpanded />
-        </PopupPanel>
-      )}
     </div>
   )
 }
