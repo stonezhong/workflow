@@ -35,9 +35,15 @@ Issues = "https://github.com/stonezhong/workflow/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/zworkflow"]
+exclude = [
+    "src/zworkflow/**/*.py",
+]
 artifacts = [
     "src/zworkflow/webui/dist/**/*",
 ]
+
+[tool.hatch.build.targets.wheel.hooks.custom]
+path = "hatch_build.py"
 
 [tool.hatch.build.targets.sdist]
 artifacts = [
