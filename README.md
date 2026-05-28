@@ -133,7 +133,9 @@ uvicorn zworkflow.apis:app --host 0.0.0.0
 Now start worker:
 ```bash
 docker exec -it zworkflow bash
+python -m zworkflow.executor --handlers handlers.yaml
 ```
+
 ## Step 4: define 2 sample tasks
 * Open [ZWorkflow WebUI](http://localhost:8000/webui)
 * Click "New Task Definition"
