@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import YAML from 'yaml'
 import PopupPanel from './PopupPanel'
 
 function SchemaButton({ schema, label, onShow }) {
@@ -97,7 +98,7 @@ export default function TaskDef({ taskDef, defaultExpanded = false }) {
           className="schema-popup"
           onClose={() => setSelectedSchema(null)}
         >
-          <pre className="json-block schema-block">{JSON.stringify(selectedSchema.schema, null, 2)}</pre>
+          <pre className="json-block schema-block">{YAML.stringify(selectedSchema.schema)}</pre>
         </PopupPanel>
       )}
     </div>

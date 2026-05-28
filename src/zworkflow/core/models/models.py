@@ -4,7 +4,7 @@ from typing import List
 from datetime import datetime
 from pydantic import BaseModel, Field
 
-from zworkflow.dal.dtos import StepDefType, WorkflowState, TaskState
+from zworkflow.dal.dtos import StepDefType, WorkflowState, TaskState, EventType
 
 ######################################################################################
 # 必须把这些model放在一个文件以避免循环索引
@@ -119,6 +119,7 @@ class CreateTaskDefDetails(BaseModel):
     output_schema: dict|None = None
 
 class CreateWorkflowDetails(BaseModel):
+    parent_id: str|None = None
     workflow_def_nv: NameAndVersion
     description: str
     title: str
@@ -138,3 +139,19 @@ class Schema(BaseModel):
     description: str
     title: str
     definition: dict
+
+class CreateEventDetails(BaseModel):
+    workflow_id: str
+    type: EventType
+    message: str
+    step_id: str|None = None
+    task_id: str|None = None
+
+class Event(BaseModel):
+    id: str
+    event_time: datetime
+    type: EventType
+    workflow_id: str
+    message: str
+    step_id: str|None = None
+    task_id: str|None = None

@@ -4,10 +4,10 @@ from copy import deepcopy
 
 from zworkflow.core.models import TaskDef, WorkflowDef, StepDef, StepDefDep, CreateTaskDefDetails, \
     NameAndVersion, CreateWorkflowDefStepDetails, CreateWorkflowDefDetails, StepDefDepDetails, Workflow, \
-    CreateWorkflowDetails, Schema, CreateSchemaDetails, Step, Task
+    CreateWorkflowDetails, Schema, CreateSchemaDetails, Step, Task, Event
 from .models  import APITaskDef, APIWorkflowDef, APIStepDef, APIStepDefDep, APICreateTaskDefDetails, APINameAndVersion, \
     APICreateWorkflowDefStepDetails, APICreateWorkflowDefDetails, APIStepDefDepDetails, APIWorkflow, APICreateWorkflowDetails, \
-    APISchema, APICreateSchemaDetails, APIStep, APITask
+    APISchema, APICreateSchemaDetails, APIStep, APITask, APIEvent
 
 class APIMapper:
     # XXX_to_api: 将domain model转换成API model
@@ -99,6 +99,17 @@ class APIMapper:
             description = schema.description,
             title = schema.title,
             definition = deepcopy(schema.definition)
+        )
+    
+    def event_to_api(self, event: Event) -> APIEvent:
+        return APIEvent(
+            id = event.id,
+            event_time = event.event_time,
+            type = event.type,
+            workflow_id = event.workflow_id,
+            step_id = event.step_id,
+            task_id = event.task_id,
+            message = event.message
         )
 
     # XXX_to_model: 将API model转换成domain model

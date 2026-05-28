@@ -4,7 +4,7 @@ from typing import List
 from datetime import datetime
 from pydantic import BaseModel, Field
 
-from zworkflow.dal.dtos import StepDefType, WorkflowState, TaskState
+from zworkflow.dal.dtos import StepDefType, WorkflowState, TaskState, EventType
 
 class APIWorkflowDef(BaseModel):
     id: str
@@ -127,3 +127,12 @@ class APICreateWorkflowDetails(BaseModel):
     description: str
     title: str
     input: dict|None = None
+
+class APIEvent(BaseModel):
+    id: str
+    event_time: datetime
+    type: EventType
+    workflow_id: str
+    step_id: str|None
+    task_id: str|None
+    message: str

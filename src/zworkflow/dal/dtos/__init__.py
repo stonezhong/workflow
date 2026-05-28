@@ -5,4 +5,5 @@ from .dtos import WorkflowDTO
 from .dtos import StepDTO
 from .dtos import TaskDTO, TaskState
 from .dtos import WorkflowDTO, WorkflowState
+from .dtos import EventDTO, EventType
 from .base import create_all_tables

@@ -5,7 +5,7 @@ import uuid
 from enum import Enum
 from datetime import datetime, timezone
 
-from sqlalchemy import String, UniqueConstraint, ForeignKey, JSON, DateTime, Boolean
+from sqlalchemy import String, UniqueConstraint, ForeignKey, JSON, DateTime, Boolean, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -161,16 +161,18 @@ class WorkflowDTO(Base):
     input: Mapped[dict|None] = mapped_column(JSON, nullable=True, default=None)
     output: Mapped[dict|None] = mapped_column(JSON, nullable=True, default=None)
 
+    time_created: Mapped[datetime] = mapped_column(
+        DateTime(),
+        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+    )
+    parent_id: Mapped[str|None] = mapped_column(
+        ForeignKey("workflow.id"), nullable=True, default=None,
+    )
+
     steps: Mapped[List[StepDTO]] = relationship(
         "StepDTO",
         foreign_keys="[StepDTO.workflow_id]",
         back_populates="workflow",
-        init=False
-    )
-
-    time_created: Mapped[datetime] = mapped_column(
-        DateTime(),
-        insert_default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
         init=False
     )
     time_started: Mapped[datetime | None] = mapped_column(
@@ -297,7 +299,6 @@ class TaskDefDTO(Base):
 ######################################################################################
 # 代表一个schema
 ######################################################################################
-
 class SchemaDTO(Base):
     __tablename__ = "schema"
 
@@ -319,3 +320,42 @@ class SchemaDTO(Base):
     title: Mapped[str]
 
     definition: Mapped[dict] = mapped_column(JSON)
+
+class EventType(Enum):
+    WORKFLOW_SUBMITTED              = "WORKFLOW_SUBMITTED"              # 执行workflow的请求被递交到workflow引擎了
+    WORKFLOW_EXECUTION_STARTED      = "WORKFLOW_EXECUTION_STARTED"      # 开始执行一个workflow
+    WORKFLOW_EXECUTION_SUCCEEDED    = "WORKFLOW_EXECUTION_SUCCEEDED"    # workflow执行完毕，并且成功
+    WORKFLOW_EXECUTION_FAILED       = "WORKFLOW_EXECUTION_FAILED"       # workflow执行完毕，并且失败
+    
+    TASK_SUBMITTED                  = "TASK_SUBMITTED"                  # 执行任务的请求被递交到workflow引擎了
+    TASK_EXECUTION_STARTED          = "TASK_EXECUTION_STARTED"          # 开始执行一个任务
+    TASK_EXECUTION_SUCCEEDED        = "TASK_EXECUTION_SUCCEEDED"        # 任务执行完毕，并且成功
+    TASK_EXECUTION_FAILED           = "TASK_EXECUTION_FAILED"           # 任务执行完毕，并且失败
+    TASK_OUTPUT                     = "TASK_OUTPUT"                     # 任务的输出
+
+######################################################################################
+# Event
+######################################################################################
+class EventDTO(Base):
+    __tablename__ = "event"
+
+    id: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        insert_default=lambda: str(uuid.uuid4()),
+        init=False
+    )
+
+    event_time: Mapped[datetime] = mapped_column(
+        DateTime(),
+        insert_default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        init=False
+    )
+
+    type: Mapped[EventType]
+    message: Mapped[str] = mapped_column(Text)
+
+    workflow_id: Mapped[str|None] = mapped_column(ForeignKey("workflow.id"), nullable=True, default=None)
+    step_id: Mapped[str|None] = mapped_column(ForeignKey("step.id"), nullable=True, default=None)
+    task_id: Mapped[str|None] = mapped_column(ForeignKey("task.id"), nullable=True, default=None)
+

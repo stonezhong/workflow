@@ -1,1 +1,1 @@
-from .workflow_def import WorkflowDefService, WorkflowService, SchemaService
+from .workflow_def import WorkflowDefService, WorkflowService, SchemaService, EventService

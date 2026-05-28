@@ -6,3 +6,4 @@ from .step_def_dep import StepDefDepDAO
 from .workflow import WorkflowDAO
 from .step  import StepDAO
 from .task import TaskDAO
+from .event import EventDAO

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { restartFailedWorkflow } from '../../ZWorkflowClient'
+import { useEffect, useState } from 'react'
+import { listWorkflowEvents, restartFailedWorkflow } from '../../ZWorkflowClient'
 import DagView from './DagView'
 import PopupPanel from './PopupPanel'
 import StepDefView from './StepDefView'
@@ -18,6 +18,25 @@ export const STATE_COLOR = {
     4: '#007700',
     5: '#ff0000'
 }
+const TASK_STATE_LABEL = {
+  1: 'Created',
+  2: 'Submitted',
+  3: 'Running',
+  4: 'Succeeded',
+  5: 'Failed',
+}
+const EVENT_TYPE_LABEL = {
+  WORKFLOW_SUBMITTED: 'workflow submitted',
+  WORKFLOW_EXECUTION_STARTED: 'workflow started',
+  WORKFLOW_EXECUTION_SUCCEEDED: 'workflow succeeded',
+  WORKFLOW_EXECUTION_FAILED: 'workflow failed',
+  TASK_SUBMITTED: 'task submitted',
+  TASK_EXECUTION_STARTED: 'task started',
+  TASK_EXECUTION_SUCCEEDED: 'task succeeded',
+  TASK_EXECUTION_FAILED: 'task failed',
+  TASK_OUTPUT: 'task message',
+}
+
 export function formatWorkflowTime(value) {
   if (!value) return '—'
 
@@ -133,6 +152,34 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
   const [isRestarting, setIsRestarting] = useState(false)
   const [selectedJson, setSelectedJson] = useState(null)
   const [selectedStepDef, setSelectedStepDef] = useState(null)
+  const [events, setEvents] = useState([])
+  const [eventsError, setEventsError] = useState(null)
+
+  useEffect(() => {
+    if (!workflow?.id) return undefined
+
+    let isMounted = true
+
+    const reloadEvents = () => {
+      listWorkflowEvents(workflow.id)
+        .then(nextEvents => {
+          if (!isMounted) return
+          setEvents(nextEvents)
+          setEventsError(null)
+        })
+        .catch(err => {
+          if (isMounted) setEventsError(err.message)
+        })
+    }
+
+    reloadEvents()
+    const intervalId = window.setInterval(reloadEvents, 1000)
+
+    return () => {
+      isMounted = false
+      window.clearInterval(intervalId)
+    }
+  }, [workflow?.id])
 
   if (!workflow) return null
 
@@ -140,6 +187,7 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
   const stateColor = STATE_COLOR[workflow.state] ?? '#64748b'
   const canRestart = workflow.state === 5
   const steps = workflow.steps ?? []
+  const stepsById = Object.fromEntries(steps.map(step => [step.id, step]))
   const stepDeps = workflow.workflow_def?.step_deps ?? []
   const dagNodes = steps.map(step => {
     const state = getStepState(step)
@@ -230,7 +278,7 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
           </tr>
           {workflow.input && (
             <tr>
-              <td className="detail-label">Input1</td>
+              <td className="detail-label">Input</td>
               <td><JsonButton value={workflow.input} label="input" onShow={setSelectedJson} /></td>
             </tr>
           )}
@@ -250,6 +298,7 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
         <table className="data-table workflow-steps-table">
           <thead>
               <tr>
+                <th>State</th>
                 <th>Key</th>
                 <th>Title</th>
                 <th>Time Created</th>
@@ -262,9 +311,11 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
           <tbody>
             {steps.map(step => {
               const stepDef = step.step_def;
+              const stepState = getStepState(step);
 
               return (
               <tr key={step.id}>
+                <td>{TASK_STATE_LABEL[stepState] ?? stepState ?? <span className="empty-note">—</span>}</td>
                 <td>
                   <a
                     href={`#step-def-${stepDef.id}`}
@@ -283,6 +334,33 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
               </tr>
               )
             })}
+          </tbody>
+        </table>
+      )}
+
+      <h3 className="section-subheading">Events</h3>
+      {eventsError && <div className="form-error workflow-action-error">{eventsError}</div>}
+      {events.length === 0 ? (
+        <p className="empty-note">No events recorded.</p>
+      ) : (
+        <table className="data-table workflow-events-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Type</th>
+              <th>Step Key</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody>
+            {events.map(event => (
+              <tr key={event.id}>
+                <td>{formatWorkflowTime(event.event_time)}</td>
+                <td>{EVENT_TYPE_LABEL[event.type] ?? event.type}</td>
+                <td>{stepsById[event.step_id]?.step_def?.key ?? <span className="empty-note">—</span>}</td>
+                <td>{event.message}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       )}

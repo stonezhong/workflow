@@ -16,8 +16,9 @@ from .activities import generic_activity
 from sqlalchemy import create_engine, Engine
 from sqlalchemy.orm import Session
 
-from zworkflow.core.services import WorkflowService
-from zworkflow.dal.dtos import WorkflowState, StepDefType, TaskState
+from zworkflow.core.services import WorkflowService, EventService
+from zworkflow.core.models import CreateEventDetails
+from zworkflow.dal.dtos import WorkflowState, StepDefType, TaskState, EventType
 from zworkflow.app_config import app_config
 from zworkflow.core.models import Workflow, Step
 from zworkflow.core.exceptions import WorkflowNotFound
@@ -87,8 +88,9 @@ class GenericWorkflow:
         # Temporal的workflow ID是随机产生的，workflow_id是zworkflow的workflow ID
         # 进入这个函数的时候，应该假设workflow的状态是RUN_REQUESTED
         ####################################################################
-
         logger.info(f"GenericWorkflow.run({workflow_id}): enter")
+
+        event_service = EventService()
 
         temporal_workflow_id = workflow.info().workflow_id
         temporal_run_id      = workflow.info().run_id
@@ -111,6 +113,17 @@ class GenericWorkflow:
                     transaction.rollback() # 因为我们没有扔出异常，所以要主动rollback transaction
                     logger.info(f"GenericWorkflow.run({workflow_id}): exit, cannot change workflow state to running")
                     return
+                event_service.create(
+                    CreateEventDetails(
+                        type = EventType.WORKFLOW_EXECUTION_STARTED,
+                        workflow_id = workflow_id,
+                        step_id = None,
+                        task_id = None,
+                        message = f"Workflow is started"
+                    ),
+                    session=session
+                )
+                
         
         # 持续驱动workflow
         while True:
@@ -159,9 +172,29 @@ class GenericWorkflow:
                         if next_workflow_state == WorkflowState.SUCCEEDED:
                             workflow_service.set_state_succeeded(zworkflow.id, session=session)
                             logger.info(f"GenericWorkflow.run({workflow_id}): set state to SUCCEEDED")
+                            event_service.create(
+                                CreateEventDetails(
+                                    type = EventType.WORKFLOW_EXECUTION_SUCCEEDED,
+                                    workflow_id = workflow_id,
+                                    step_id = None,
+                                    task_id = None,
+                                    message = f"Workflow is succeeded"
+                                ),
+                                session=session
+                            )
                         if next_workflow_state == WorkflowState.FAILED:
                             workflow_service.set_state_failed(zworkflow.id, session=session)
                             logger.info(f"GenericWorkflow.run({workflow_id}): set state to FAILED")
+                            event_service.create(
+                                CreateEventDetails(
+                                    type = EventType.WORKFLOW_EXECUTION_FAILED,
+                                    workflow_id = workflow_id,
+                                    step_id = None,
+                                    task_id = None,
+                                    message = f"Workflow is failed"
+                                ),
+                                session=session
+                            )
                 break
 
 
@@ -187,6 +220,18 @@ class GenericWorkflow:
                         retry_policy=RetryPolicy(maximum_attempts=1),
                     ))
                     logger.info(f"GenericWorkflow.run({workflow_id}): activity invoked successfully")
+                    with Session(engine) as session:
+                        with session.begin() as transaction:
+                            event_service.create(
+                                CreateEventDetails(
+                                    type = EventType.TASK_SUBMITTED,
+                                    workflow_id = workflow_id,
+                                    step_id = step.id,
+                                    task_id = step.invoke_task.id,
+                                    message = f"Task is submitted"
+                                ),
+                                session=session
+                            )
                 elif step.step_def.type == StepDefType.WORKFLOW:
                     child_temporal_workflow_id = str(uuid.uuid4())
                     results.append(workflow.execute_child_workflow(
@@ -196,6 +241,18 @@ class GenericWorkflow:
                         retry_policy=RetryPolicy(maximum_attempts=1)
                     ))
                     logger.info(f"GenericWorkflow.run({workflow_id}): workflow invoked successfully")           
+                    with Session(engine) as session:
+                        with session.begin() as transaction:
+                            event_service.create(
+                                CreateEventDetails(
+                                    type = EventType.WORKFLOW_SUBMITTED,
+                                    workflow_id = step.invoke_workflow.workflow_id,
+                                    step_id = None,
+                                    task_id = None,
+                                    message = f"workflow is submitted"
+                                ),
+                                session=session
+                            )
             returns = await asyncio.gather(*results, return_exceptions=True)
             # maybe log bit debug info here
 

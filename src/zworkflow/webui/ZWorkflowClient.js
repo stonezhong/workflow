@@ -59,6 +59,10 @@ export function getWorkflow(workflowId) {
   return request(`/workflows/${workflowId}`)
 }
 
+export function listWorkflowEvents(workflowId) {
+  return request(`/workflows/${workflowId}/events`)
+}
+
 export function createWorkflow(details) {
   return request('/workflows', {
     method: 'POST',

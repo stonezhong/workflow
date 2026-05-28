@@ -7,10 +7,12 @@ logger = logging.getLogger(__name__)
 from sqlalchemy import create_engine, Engine
 from sqlalchemy.orm import Session
 from temporalio import activity
+import contextlib
 
 from zworkflow.app_config import app_config
-from zworkflow.core.services import WorkflowService
-from zworkflow.dal.dtos import StepDefType, TaskState
+from zworkflow.core.services import WorkflowService, EventService
+from zworkflow.core.models import CreateEventDetails
+from zworkflow.dal.dtos import StepDefType, TaskState, EventType
 
 @activity.defn
 async def greet(name: str) -> str:
@@ -24,7 +26,25 @@ async def generic_activity(step_id: str) -> None:
 
     # 加载任务参数
     workflow_service = WorkflowService()
+    event_service = EventService()
+
     engine:Engine = create_engine(app_config.database.url, connect_args=app_config.database.connect_args)
+
+    def log_task_output(task_id:str, message:str)-> None:
+        with Session(engine) as session:
+            with session.begin() as transaction:
+                event_service.create(
+                    CreateEventDetails(
+                        type = EventType.TASK_OUTPUT,
+                        workflow_id = zworkflow.id,
+                        step_id = step_id,
+                        task_id = task_id,
+                        message = message
+                    ),
+                    session=session
+                )
+
+
     with Session(engine) as session:
         with session.begin() as transaction:
             zworkflow, step = workflow_service.get_step(step_id, session=session)
@@ -49,6 +69,16 @@ async def generic_activity(step_id: str) -> None:
             ####################################################################
             workflow_service.set_task_state_running(task.id, session=session)
             logger.info(f"generic_activity({step_id}): change task state to RUNNING")
+            event_service.create(
+                CreateEventDetails(
+                    type = EventType.TASK_EXECUTION_STARTED,
+                    workflow_id = zworkflow.id,
+                    step_id = step_id,
+                    task_id = task.id,
+                    message = f"Task is started"
+                ),
+                session=session
+            )
 
     # 现在寻找handler，并且运行
 
@@ -61,19 +91,39 @@ async def generic_activity(step_id: str) -> None:
         return None
     
     try:
-        output = await handler(task.input)
+        output = await handler(task.input, logger=lambda message: log_task_output(task.id, message))
         with Session(engine) as session:
             with session.begin() as transaction:
                 workflow_service.set_task_state_succeeded(task.id, output, session=session)
                 if step.step_def.is_return_step:
                     workflow_service.set_output(zworkflow.id, output, session=session)
                 # TODO: save output
+                event_service.create(
+                    CreateEventDetails(
+                        type = EventType.TASK_EXECUTION_SUCCEEDED,
+                        workflow_id = zworkflow.id,
+                        step_id = step_id,
+                        task_id = task.id,
+                        message = f"Task is succeeded"
+                    ),
+                    session=session
+                )
         logger.info(f"generic_activity({step_id}): task succeeded")
         return None
     except Exception as e:
         with Session(engine) as session:
             with session.begin() as transaction:
                 workflow_service.set_task_state_failed(task.id, session=session)
+                event_service.create(
+                    CreateEventDetails(
+                        type = EventType.TASK_EXECUTION_FAILED,
+                        workflow_id = zworkflow.id,
+                        step_id = step_id,
+                        task_id = task.id,
+                        message = f"Task is failed"
+                    ),
+                    session=session
+                )
         logger.error(f"generic_activity({step_id}): task failed", e)
         raise e
 

@@ -44,9 +44,9 @@ app = FastAPI(lifespan=lifespan)
 
 
 from zworkflow.apis.models import APIWorkflowDef, APICreateWorkflowDefDetails, APITaskDef, APICreateTaskDefDetails, APIWorkflow, \
-    APICreateWorkflowDetails, APISchema, APICreateSchemaDetails
+    APICreateWorkflowDetails, APISchema, APICreateSchemaDetails, APIEvent
 from zworkflow.apis.mapper import APIMapper
-from zworkflow.core.services import WorkflowDefService, WorkflowService, SchemaService
+from zworkflow.core.services import WorkflowDefService, WorkflowService, SchemaService, EventService
 from zworkflow.core.exceptions import TaskDefNotFound, WorkflowDefNotFound, WorkflowNotFound, SchemaNotFound
 
 def get_db():
@@ -58,6 +58,7 @@ api_mapper: APIMapper = APIMapper()
 workflow_def_service: WorkflowDefService = WorkflowDefService()
 workflow_service: WorkflowService = WorkflowService()
 schema_service: SchemaService = SchemaService()
+event_service: EventService = EventService()
 
 #############################################################
 # Workflow Def APIs
@@ -232,6 +233,17 @@ async def workflow_get(workflow_id:str, session: Session = Depends(get_db)) -> A
     if workflow is None:
         raise HTTPException(status_code=404)
     return workflow
+
+@app.get(
+    "/workflows/{workflow_id}/events",
+    tags = ["Workflow"],
+    summary="Get all events for a specific workflow by id",
+    description = "Get all events for a specific workflow by id"
+)
+async def workflow_list_events(workflow_id:str, session: Session = Depends(get_db)) -> List[APIEvent]:
+    return [
+        api_mapper.event_to_api(event) for event in event_service.list(workflow_id, session=session)
+    ] 
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 app.mount("/webui", StaticFiles(directory=os.path.join(PROJECT_ROOT, "webui", "dist"), html=True), name="webui")

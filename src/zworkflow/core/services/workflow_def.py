@@ -14,12 +14,12 @@ from temporalio.common import RetryPolicy
 
 from zworkflow.app_config import AppConfig
 from zworkflow.core.models import Schema, WorkflowDef, TaskDef, StepDef, StepDefDep, CreateWorkflowDefDetails, \
-    CreateTaskDefDetails, Workflow, CreateWorkflowDetails, CreateSchemaDetails, Step, Task, NameAndVersion
+    CreateTaskDefDetails, Workflow, CreateWorkflowDetails, CreateSchemaDetails, Step, Task, NameAndVersion, Event, CreateEventDetails
 from zworkflow.core.exceptions import WorkflowDefNotFound, BadInput, WorkflowNotFound, SchemaNotFound
 
-from zworkflow.dal.dtos import SchemaDTO, TaskDefDTO, WorkflowDefDTO, StepDefDTO, StepDefDepDTO, WorkflowDTO, TaskDTO, StepDTO
+from zworkflow.dal.dtos import SchemaDTO, TaskDefDTO, WorkflowDefDTO, StepDefDTO, StepDefDepDTO, WorkflowDTO, TaskDTO, StepDTO, EventDTO, EventType
 from zworkflow.dal.dtos import StepDefType, WorkflowState, TaskState
-from zworkflow.dal.daos import SchemaDAO, WorkflowDefDAO, StepDefDAO, StepDefDepDAO, TaskDefDAO, WorkflowDAO, TaskDAO, StepDAO
+from zworkflow.dal.daos import SchemaDAO, WorkflowDefDAO, StepDefDAO, StepDefDepDAO, TaskDefDAO, WorkflowDAO, TaskDAO, StepDAO, EventDAO
 
 from zworkflow.app_config import app_config
 
@@ -175,6 +175,7 @@ class WorkflowDefService:
 
 class WorkflowService:
     workflow_def_service: WorkflowDefService
+    event_service: EventService
     workflow_def_dao: WorkflowDefDAO
     workflow_dao: WorkflowDAO
     task_dao: TaskDAO
@@ -183,6 +184,7 @@ class WorkflowService:
 
     def __init__(self):
         self.workflow_def_service = WorkflowDefService()
+        self.event_service = EventService()
         self.workflow_def_dao = WorkflowDefDAO()
         self.workflow_dao = WorkflowDAO()
         self.task_dao = TaskDAO()
@@ -217,6 +219,17 @@ class WorkflowService:
             task_queue=app_config.temporal.queue_name,
             retry_policy=RetryPolicy(maximum_attempts=1)
         )
+        self.event_service.create(
+            CreateEventDetails(
+                type = EventType.WORKFLOW_SUBMITTED,
+                workflow_id = workflow.id,
+                step_id = None,
+                task_id = None,
+                message = f"Workflow is submitted"
+            ),
+            session=session
+        )
+
         logger.debug(f"WorkflowService.start_workflow: notified temporal to start workflow in queue {app_config.temporal.queue_name}, workflow id = {workflow.id}, temporal workflow id = {temporal_workflow_id}")
         return workflow
 
@@ -264,6 +277,16 @@ class WorkflowService:
             id=temporal_workflow_id,
             task_queue=app_config.temporal.queue_name,
         )
+        self.event_service.create(
+            CreateEventDetails(
+                type = EventType.WORKFLOW_SUBMITTED,
+                workflow_id = workflow.id,
+                step_id = None,
+                task_id = None,
+                message = f"Workflow is submitted"
+            ),
+            session=session
+        )
         logger.debug(f"WorkflowService.restart_failed_workflow: notified temporal to start workflow in queue {app_config.temporal.queue_name}, workflow id = {workflow.id}, temporal workflow id = {temporal_workflow_id}")
 
         logger.debug(f"restart_failed_workflow: exit")
@@ -290,6 +313,7 @@ class WorkflowService:
             )
 
         workflow_dto = WorkflowDTO(
+            parent_id=create_workflow_details.parent_id,
             workflow_def_id = workflow_def.id,
             description = create_workflow_details.description,
             title = create_workflow_details.title,
@@ -424,6 +448,7 @@ class WorkflowService:
             self.workflow_dao.set_step_task(step.id, task_dto.id, session=session)
         elif step.step_def.type == StepDefType.WORKFLOW:
             create_workflow_details = CreateWorkflowDetails(
+                parent_id=workflow_id,
                 workflow_def_nv = NameAndVersion(
                     name = step.step_def.invoke_workflow_def.name,
                     version = step.step_def.invoke_workflow_def.version,
@@ -480,6 +505,34 @@ class SchemaService:
         if schema_dto is None:
             raise SchemaNotFound()
         return self.mapper.schema_to_model(schema_dto)
+
+class EventService:
+    event_dao: EventDAO
+    mapper: Mapper
+
+    def __init__(self):
+        self.event_dao = EventDAO()
+        self.mapper = Mapper()
+
+    ############################################################
+    # 列出全部根一个workflow相关的Event
+    ############################################################
+    def list(self, workflow_id:str, *, session:Session) -> List[Event]:
+        return [
+            self.mapper.event_to_model(event_dto) \
+                for event_dto in self.event_dao.list(workflow_id, session=session)
+        ]
+    
+    def create(self, create_event_details:CreateEventDetails, *, session:Session) -> Event:
+        event_dto = EventDTO(
+            type = create_event_details.type,
+            workflow_id = create_event_details.workflow_id,
+            step_id = create_event_details.step_id,
+            task_id = create_event_details.task_id,
+            message = create_event_details.message
+        )
+        event_dto = self.event_dao.save(event_dto, session=session)
+        return self.mapper.event_to_model(event_dto)
 
 class Mapper:
     # XXX_to_model: dto to core model
@@ -576,6 +629,17 @@ class Mapper:
             description = schema_dto.description,
             title = schema_dto.title,
             definition = deepcopy(schema_dto.definition)
+        )
+    
+    def event_to_model(self, event_dto: EventDTO|None) -> Event|None:
+        return None if event_dto is None else Event(
+            id = event_dto.id,
+            event_time=event_dto.event_time,
+            type = event_dto.type,
+            workflow_id=event_dto.workflow_id,
+            step_id = event_dto.step_id,
+            task_id = event_dto.task_id,
+            message = event_dto.message
         )
     
     def task_def_to_model(self, task_def_dto:TaskDefDTO|None) -> TaskDef|None:

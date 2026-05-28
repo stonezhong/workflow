@@ -593,20 +593,46 @@
   width: 200px;
 }
 
-.workflow-steps-table th:nth-child(3),
-.workflow-steps-table td:nth-child(3),
+.workflow-steps-table th:first-child,
+.workflow-steps-table td:first-child {
+  width: 100px;
+}
+
 .workflow-steps-table th:nth-child(4),
 .workflow-steps-table td:nth-child(4),
 .workflow-steps-table th:nth-child(5),
-.workflow-steps-table td:nth-child(5) {
+.workflow-steps-table td:nth-child(5),
+.workflow-steps-table th:nth-child(6),
+.workflow-steps-table td:nth-child(6) {
   width: 200px;
 }
 
-.workflow-steps-table th:nth-child(6),
-.workflow-steps-table td:nth-child(6),
 .workflow-steps-table th:nth-child(7),
-.workflow-steps-table td:nth-child(7) {
+.workflow-steps-table td:nth-child(7),
+.workflow-steps-table th:nth-child(8),
+.workflow-steps-table td:nth-child(8) {
   width: 80px;
+}
+
+.workflow-events-table th:first-child,
+.workflow-events-table td:first-child {
+  width: 200px;
+}
+
+.workflow-events-table th:nth-child(2),
+.workflow-events-table td:nth-child(2) {
+  width: 240px;
+}
+
+.workflow-events-table th:nth-child(3),
+.workflow-events-table td:nth-child(3) {
+  width: 220px;
+  word-break: break-all;
+}
+
+.workflow-events-table th:nth-child(4),
+.workflow-events-table td:nth-child(4) {
+  word-break: break-all;
 }
 
 .compact-edit-table select {
