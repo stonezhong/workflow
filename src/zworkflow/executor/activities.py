@@ -4,6 +4,10 @@ import logging.config
 import logging
 logger = logging.getLogger(__name__)
 
+import traceback
+from jsonschema import validate
+from jsonschema.exceptions import ValidationError
+
 from sqlalchemy import create_engine, Engine
 from sqlalchemy.orm import Session
 from temporalio import activity
@@ -90,27 +94,35 @@ async def generic_activity(step_id: str) -> None:
                 workflow_service.set_task_state_failed(task.id, session=session)
         return None
     
+    # 现在，检查输入是否匹配input的JSON Schema
+    if task_def.input_schema is not None:
+        try:
+            validate(
+                instance = task.input,
+                schema = task_def.input_schema
+            )
+        except ValidationError as e:
+            logger.info(f"generic_activity({step_id}): task input violate task schema")
+            with Session(engine) as session:
+                with session.begin() as transaction:
+                    workflow_service.set_task_state_failed(task.id, session=session)
+                    event_service.create(
+                        CreateEventDetails(
+                            type = EventType.TASK_EXECUTION_FAILED,
+                            workflow_id = zworkflow.id,
+                            step_id = step_id,
+                            task_id = task.id,
+                            message = f"Task input violated task schema: {e}"
+                        ),
+                        session=session
+                    )
+            return None
+
+    
     try:
         output = await handler(task.input, logger=lambda message: log_task_output(task.id, message))
-        with Session(engine) as session:
-            with session.begin() as transaction:
-                workflow_service.set_task_state_succeeded(task.id, output, session=session)
-                if step.step_def.is_return_step:
-                    workflow_service.set_output(zworkflow.id, output, session=session)
-                # TODO: save output
-                event_service.create(
-                    CreateEventDetails(
-                        type = EventType.TASK_EXECUTION_SUCCEEDED,
-                        workflow_id = zworkflow.id,
-                        step_id = step_id,
-                        task_id = task.id,
-                        message = f"Task is succeeded"
-                    ),
-                    session=session
-                )
-        logger.info(f"generic_activity({step_id}): task succeeded")
-        return None
     except Exception as e:
+        stack = "".join(traceback.format_exception(e))
         with Session(engine) as session:
             with session.begin() as transaction:
                 workflow_service.set_task_state_failed(task.id, session=session)
@@ -120,12 +132,55 @@ async def generic_activity(step_id: str) -> None:
                         workflow_id = zworkflow.id,
                         step_id = step_id,
                         task_id = task.id,
-                        message = f"Task is failed"
+                        message = stack
                     ),
                     session=session
                 )
         logger.error(f"generic_activity({step_id}): task failed", e)
         raise e
+    
+    # Validate output
+    # 现在，检查task的输出是否匹配output的JSON Schema
+    if task_def.output_schema is not None:
+        try:
+            validate(
+                instance = output,
+                schema = task_def.output_schema
+            )
+        except ValidationError as e:
+            logger.info(f"generic_activity({step_id}): task output violate task schema")
+            with Session(engine) as session:
+                with session.begin() as transaction:
+                    workflow_service.set_task_state_failed(task.id, session=session)
+                    event_service.create(
+                        CreateEventDetails(
+                            type = EventType.TASK_EXECUTION_FAILED,
+                            workflow_id = zworkflow.id,
+                            step_id = step_id,
+                            task_id = task.id,
+                            message = f"Task output violated task schema: {e}"
+                        ),
+                        session=session
+                    )
+            return None
 
+    # task output没有问题，可以将这个task设置成成功了。
+    with Session(engine) as session:
+        with session.begin() as transaction:
+            workflow_service.set_task_state_succeeded(task.id, output, session=session)
+            if step.step_def.is_return_step:
+                workflow_service.set_output(zworkflow.id, output, session=session)
+            event_service.create(
+                CreateEventDetails(
+                    type = EventType.TASK_EXECUTION_SUCCEEDED,
+                    workflow_id = zworkflow.id,
+                    step_id = step_id,
+                    task_id = task.id,
+                    message = f"Task is succeeded"
+                ),
+                session=session
+            )
+    logger.info(f"generic_activity({step_id}): task succeeded")
+    return None
 
 

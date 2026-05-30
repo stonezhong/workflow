@@ -128,6 +128,28 @@ function StepState({ step }) {
     return <span className="empty-note">—</span>;
 }
 
+function EventMessage({ message, onShow }) {
+  const value = message ?? ''
+
+  return (
+    <div className="foldable-schema">
+      {value.length > 100 && (
+        <button
+          type="button"
+          className="schema-toggle icon-button json-view-button"
+          aria-haspopup="dialog"
+          aria-label="Show full event message"
+          title="Show full event message"
+          onClick={() => onShow(value)}
+        >
+          <span className="magnifier-icon" aria-hidden="true" />
+        </button>
+      )}
+      <span>{value.slice(0, 100)}</span>
+    </div>
+  )
+}
+
 function JsonButton({ value, label, onShow }) {
   const hasValue = value !== undefined
 
@@ -155,6 +177,7 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
   const [restartError, setRestartError] = useState(null)
   const [isRestarting, setIsRestarting] = useState(false)
   const [selectedJson, setSelectedJson] = useState(null)
+  const [selectedEventMessage, setSelectedEventMessage] = useState(null)
   const [selectedStepDef, setSelectedStepDef] = useState(null)
   const [events, setEvents] = useState([])
   const [eventsError, setEventsError] = useState(null)
@@ -364,11 +387,21 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
                 <td>{formatWorkflowTime(event.event_time)}</td>
                 <td>{EVENT_TYPE_LABEL[event.type] ?? event.type}</td>
                 <td>{stepsById[event.step_id]?.step_def?.key ?? <span className="empty-note">—</span>}</td>
-                <td>{event.message}</td>
+                <td><EventMessage message={event.message} onShow={setSelectedEventMessage} /></td>
               </tr>
             ))}
           </tbody>
         </table>
+      )}
+
+      {selectedEventMessage !== null && (
+        <PopupPanel
+          title="Event Message"
+          className="event-message-popup"
+          onClose={() => setSelectedEventMessage(null)}
+        >
+          <pre className="message-block">{selectedEventMessage}</pre>
+        </PopupPanel>
       )}
 
       {selectedJson && (
