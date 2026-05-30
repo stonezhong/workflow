@@ -3,28 +3,8 @@ import { listWorkflowEvents, restartFailedWorkflow } from '../../ZWorkflowClient
 import DagView from './DagView'
 import PopupPanel from './PopupPanel'
 import StepDefView from './StepDefView'
-
-export const STATE_LABEL = { 
-    1: 'Created', 
-    2: 'run requested',
-    3: 'running',
-    4: "succeeded",
-    5: "failed"
-}
-export const STATE_COLOR = { 
-    1: '#505050', 
-    2: '#505050', 
-    3: '#00ff00',
-    4: '#007700',
-    5: '#ff0000'
-}
-const TASK_STATE_LABEL = {
-  1: 'Created',
-  2: 'Submitted',
-  3: 'Running',
-  4: 'Succeeded',
-  5: 'Failed',
-}
+import TaskState, { getStateColor as getTaskStateColor } from './TaskState'
+import WorkflowState, { getStateColor as getWorkflowStateColor } from './WorkflowState'
 const EVENT_TYPE_LABEL = {
   WORKFLOW_SUBMITTED: 'workflow submitted',
   WORKFLOW_EXECUTION_STARTED: 'workflow started',
@@ -124,6 +104,30 @@ function getStepState(step) {
     return null;
 }
 
+function getStepStateColor(step, fallback) {
+    const state = getStepState(step);
+
+    if (step.step_def.type === 1) {
+        return getTaskStateColor(state, fallback);
+    }
+    if (step.step_def.type === 2) {
+        return getWorkflowStateColor(state, fallback);
+    }
+    return fallback;
+}
+
+function StepState({ step }) {
+    const state = getStepState(step);
+
+    if (step.step_def.type === 1) {
+        return <TaskState state={state} />;
+    }
+    if (step.step_def.type === 2) {
+        return <WorkflowState state={state} />;
+    }
+    return <span className="empty-note">—</span>;
+}
+
 function JsonButton({ value, label, onShow }) {
   const hasValue = value !== undefined
 
@@ -183,9 +187,7 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
 
   if (!workflow) return null
 
-  const stateLabel = STATE_LABEL[workflow.state] ?? workflow.state
-  const stateColor = STATE_COLOR[workflow.state] ?? '#64748b'
-  const canRestart = workflow.state === 5
+  const canRestart = workflow.state === 'FAILED'
   const steps = workflow.steps ?? []
   const stepsById = Object.fromEntries(steps.map(step => [step.id, step]))
   const stepDeps = workflow.workflow_def?.step_deps ?? []
@@ -197,12 +199,10 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
     }).toString()
     : null
   const dagNodes = steps.map(step => {
-    const state = getStepState(step)
-
     return {
       key: step.step_def.key,
       title: step.step_def.title,
-      color: STATE_COLOR[state] ?? '#f8fafc',
+      color: getStepStateColor(step, '#f8fafc'),
     }
   })
 
@@ -226,9 +226,7 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
   return (
     <div className="workflow">
       <div className="def-summary">
-        <span className="state-badge" style={{ background: stateColor }}>
-          {stateLabel}
-        </span>
+        <WorkflowState state={workflow.state} />
         <span className="def-name">
           {workflow.title}
         </span>
@@ -266,14 +264,6 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
           <tr>
             <td className="detail-label">Ended</td>
             <td>{formatWorkflowTime(workflow.time_ended)}</td>
-          </tr>
-          <tr>
-            <td className="detail-label">State</td>
-            <td>
-              <span className="state-badge" style={{ background: stateColor }}>
-                {stateLabel}
-              </span>
-            </td>
           </tr>
           <tr>
             <td className="detail-label">Workflow Def</td>
@@ -320,11 +310,10 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
           <tbody>
             {steps.map(step => {
               const stepDef = step.step_def;
-              const stepState = getStepState(step);
 
               return (
               <tr key={step.id}>
-                <td>{TASK_STATE_LABEL[stepState] ?? stepState ?? <span className="empty-note">—</span>}</td>
+                <td><StepState step={step} /></td>
                 <td>
                   <a
                     href={`#step-def-${stepDef.id}`}

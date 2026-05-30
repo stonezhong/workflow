@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from copy import deepcopy
 
+from zworkflow.dal.dtos import WorkflowState, TaskState
 from zworkflow.core.models import TaskDef, WorkflowDef, StepDef, StepDefDep, CreateTaskDefDetails, \
     NameAndVersion, CreateWorkflowDefStepDetails, CreateWorkflowDefDetails, StepDefDepDetails, Workflow, \
     CreateWorkflowDetails, Schema, CreateSchemaDetails, Step, Task, Event
 from .models  import APITaskDef, APIWorkflowDef, APIStepDef, APIStepDefDep, APICreateTaskDefDetails, APINameAndVersion, \
     APICreateWorkflowDefStepDetails, APICreateWorkflowDefDetails, APIStepDefDepDetails, APIWorkflow, APICreateWorkflowDetails, \
-    APISchema, APICreateSchemaDetails, APIStep, APITask, APIEvent
+    APISchema, APICreateSchemaDetails, APIStep, APITask, APIEvent, APIWorkflowState, APITaskState
 
 class APIMapper:
     # XXX_to_api: 将domain model转换成API model
@@ -22,7 +23,35 @@ class APIMapper:
             input_schema = deepcopy(task_def.input_schema),
             output_schema = deepcopy(task_def.output_schema)
         )
-    
+
+    def workflow_state_to_api(self, workflow_state:WorkflowState) -> APIWorkflowState:
+        MAPPING = {
+            WorkflowState.CREATED:          APIWorkflowState.CREATED,
+            WorkflowState.RUN_REQUESTED:    APIWorkflowState.SUBMITTED,
+            WorkflowState.RUNNING:          APIWorkflowState.RUNNING,
+            WorkflowState.SUCCEEDED:        APIWorkflowState.SUCCEEDED,
+            WorkflowState.FAILED:           APIWorkflowState.FAILED,
+        }
+
+        ret = MAPPING.get(workflow_state)
+        if ret is None:
+            raise ValueError(f"Invalid WorkflowState: {workflow_state}")
+        return ret
+
+    def task_state_to_api(self, task_state:TaskState) -> APITaskState:
+        MAPPING = {
+            TaskState.CREATED:          APITaskState.CREATED,
+            TaskState.RUN_REQUESTED:    APITaskState.SUBMITTED,
+            TaskState.RUNNING:          APITaskState.RUNNING,
+            TaskState.SUCCEEDED:        APITaskState.SUCCEEDED,
+            TaskState.FAILED:           APITaskState.FAILED,
+        }
+
+        ret = MAPPING.get(task_state)
+        if ret is None:
+            raise ValueError(f"Invalid TaskState: {task_state}")
+        return ret
+
     def workflow_def_to_api(self, workflow_def:WorkflowDef|None) -> APIWorkflowDef|None:
         return None if workflow_def is None else APIWorkflowDef(
             id = workflow_def.id,
@@ -35,7 +64,7 @@ class APIMapper:
             input_schema = deepcopy(workflow_def.input_schema),
             output_schema = deepcopy(workflow_def.output_schema)
         )
-    
+
     def step_def_to_api(self, step_dep:StepDef) -> APIStepDef:
         return APIStepDef(
             id = step_dep.id,
@@ -48,14 +77,14 @@ class APIMapper:
             invoke_task_def = self.task_def_to_api(step_dep.invoke_task_def),
             invoke_workflow_def = self.workflow_def_to_api(step_dep.invoke_workflow_def)
         )
-    
+
     def step_def_dep_to_api(self, step_def_dep: StepDefDep) -> APIStepDefDep:
         return APIStepDefDep(
             id = step_def_dep.id,
             source_step_def_key = step_def_dep.source_step_def_key,
             destination_step_def_key = step_def_dep.destination_step_def_key
         )
-    
+
     def workflow_to_api(self, workflow: Workflow|None) -> APIWorkflow|None:
         return None if workflow is None else APIWorkflow(
             id = workflow.id,
@@ -64,13 +93,13 @@ class APIMapper:
             title = workflow.title,
             input = workflow.input,
             output = workflow.output,
-            state = workflow.state,
+            state = self.workflow_state_to_api(workflow.state),
             steps = [self.step_to_api(step) for step in workflow.steps],
             time_created = workflow.time_created,
             time_started = workflow.time_started,
             time_ended = workflow.time_ended
         )
-    
+
     def step_to_api(self, step:Step|None) -> APIStep|None:
         return None if step is None else APIStep(
             id = step.id,
@@ -85,7 +114,7 @@ class APIMapper:
             task_def = self.task_def_to_api(task.task_def),
             input = deepcopy(task.input),
             output = deepcopy(task.output),
-            state = task.state,
+            state = self.task_state_to_api(task.state),
             time_created = task.time_created,
             time_started = task.time_started,
             time_ended = task.time_ended
@@ -100,7 +129,7 @@ class APIMapper:
             title = schema.title,
             definition = deepcopy(schema.definition)
         )
-    
+
     def event_to_api(self, event: Event) -> APIEvent:
         return APIEvent(
             id = event.id,
@@ -123,7 +152,7 @@ class APIMapper:
             input_schema = deepcopy(create_task_def_details.input_schema),
             output_schema = deepcopy(create_task_def_details.output_schema)
         )
-    
+
     def name_and_version_to_model(self, name_and_version:APINameAndVersion|None) -> NameAndVersion:
         return None if name_and_version is None else NameAndVersion(
             name = name_and_version.name,
@@ -141,14 +170,14 @@ class APIMapper:
             invoke_task_def_nv = self.name_and_version_to_model(create_workflow_def_step_details.invoke_task_def_nv),
             invoke_workflow_def_nv = self.name_and_version_to_model(create_workflow_def_step_details.invoke_workflow_def_nv)
         )
-    
+
     def step_def_dep_details_to_model(self, step_def_dep_details:APIStepDefDepDetails) -> StepDefDepDetails:
         return StepDefDepDetails(
             source_step_def_key = step_def_dep_details.source_step_def_key,
             destination_step_def_key = step_def_dep_details.destination_step_def_key
         )
 
-    
+
     def create_workflow_def_details_to_model(self, create_workflow_def_details: APICreateWorkflowDefDetails) -> CreateWorkflowDefDetails:
         return CreateWorkflowDefDetails(
             name = create_workflow_def_details.name,
@@ -160,7 +189,7 @@ class APIMapper:
             input_schema = deepcopy(create_workflow_def_details.input_schema),
             output_schema = deepcopy(create_workflow_def_details.output_schema)
         )
-    
+
     def create_workflow_details_to_model(self, create_workflow_details: APICreateWorkflowDetails) -> CreateWorkflowDetails:
         return CreateWorkflowDetails(
             workflow_def_nv = NameAndVersion(
