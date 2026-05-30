@@ -56,10 +56,6 @@ export default function StepDefView({ stepDef }) {
       <table className="detail-table def-details">
         <tbody>
           <tr>
-            <td className="detail-label">ID</td>
-            <td>{stepDef.id}</td>
-          </tr>
-          <tr>
             <td className="detail-label">Key</td>
             <td><code>{stepDef.key}</code></td>
           </tr>

@@ -248,10 +248,6 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
       <table className="detail-table def-details">
         <tbody>
           <tr>
-            <td className="detail-label">ID</td>
-            <td>{workflow.id}</td>
-          </tr>
-          <tr>
             <td className="detail-label">Title</td>
             <td>{workflow.title}</td>
           </tr>

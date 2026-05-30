@@ -70,10 +70,6 @@ export default function WorkflowDefinition({ workflowDef, defaultExpanded = fals
           <table className="detail-table wf-def-details">
             <tbody>
               <tr>
-                <td className="detail-label">ID</td>
-                <td>{workflowDef.id}</td>
-              </tr>
-              <tr>
                 <td className="detail-label">Name</td>
                 <td>{workflowDef.name}</td>
               </tr>
