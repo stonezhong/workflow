@@ -49,10 +49,6 @@ export default function TaskDef({ taskDef, defaultExpanded = false }) {
         <table className="detail-table task-def-details">
           <tbody>
             <tr>
-              <td className="detail-label">ID</td>
-              <td>{taskDef.id}</td>
-            </tr>
-            <tr>
               <td className="detail-label">Name</td>
               <td>{taskDef.name}</td>
             </tr>
