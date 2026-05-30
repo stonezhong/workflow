@@ -275,8 +275,8 @@
 }
 
 .schema-block {
-  margin-top: 0.5rem;
-  max-height: 320px;
+  width: 100%;
+  height: 100%;
 }
 
 .step-def-link {
@@ -311,7 +311,9 @@
   min-width: min(320px, calc(100% - 3rem));
   min-height: 160px;
   max-height: calc(100dvh - 3rem);
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   resize: both;
   transform: translate(-50%, -50%);
   background: #fff;
@@ -329,6 +331,12 @@
   margin-bottom: 1rem;
   cursor: move;
   user-select: none;
+}
+
+.popup-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
 .popup-header h3 {

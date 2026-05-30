@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import YAML from 'yaml'
 import DagView from './DagView'
 import PopupPanel from './PopupPanel'
 import StepDefView from './StepDefView'
@@ -17,8 +18,7 @@ function stepInvokeLabel(step) {
   return '—'
 }
 
-function FoldableSchema({ schema }) {
-  const [isExpanded, setIsExpanded] = useState(false)
+function SchemaButton({ schema, label, onShow }) {
   const hasSchema = schema != null
 
   if (!hasSchema) {
@@ -29,15 +29,14 @@ function FoldableSchema({ schema }) {
     <div className="foldable-schema">
       <button
         type="button"
-        className="schema-toggle"
-        aria-expanded={isExpanded}
-        onClick={() => setIsExpanded(value => !value)}
+        className="schema-toggle icon-button json-view-button"
+        aria-haspopup="dialog"
+        aria-label={`Show ${label}`}
+        title={`Show ${label}`}
+        onClick={() => onShow({ schema, label })}
       >
-        {isExpanded ? 'Hide schema' : 'Show schema'}
+        <span className="magnifier-icon" aria-hidden="true" />
       </button>
-      {isExpanded && (
-        <pre className="json-block schema-block">{JSON.stringify(schema, null, 2)}</pre>
-      )}
     </div>
   )
 }
@@ -45,6 +44,7 @@ function FoldableSchema({ schema }) {
 export default function WorkflowDefinition({ workflowDef, defaultExpanded = false }) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded)
   const [selectedStepDef, setSelectedStepDef] = useState(null)
+  const [selectedSchema, setSelectedSchema] = useState(null)
 
   if (!workflowDef) return null
 
@@ -87,11 +87,23 @@ export default function WorkflowDefinition({ workflowDef, defaultExpanded = fals
               </tr>
               <tr>
                 <td className="detail-label">Input Schema</td>
-                <td><FoldableSchema schema={workflowDef.input_schema} /></td>
+                <td>
+                  <SchemaButton
+                    schema={workflowDef.input_schema}
+                    label="Input Schema"
+                    onShow={setSelectedSchema}
+                  />
+                </td>
               </tr>
               <tr>
                 <td className="detail-label">Output Schema</td>
-                <td><FoldableSchema schema={workflowDef.output_schema} /></td>
+                <td>
+                  <SchemaButton
+                    schema={workflowDef.output_schema}
+                    label="Output Schema"
+                    onShow={setSelectedSchema}
+                  />
+                </td>
               </tr>
             </tbody>
           </table>
@@ -144,6 +156,16 @@ export default function WorkflowDefinition({ workflowDef, defaultExpanded = fals
               />
             </div>
         </>
+      )}
+
+      {selectedSchema && (
+        <PopupPanel
+          title={selectedSchema.label}
+          className="schema-popup"
+          onClose={() => setSelectedSchema(null)}
+        >
+          <pre className="json-block schema-block">{YAML.stringify(selectedSchema.schema)}</pre>
+        </PopupPanel>
       )}
 
       {selectedStepDef && (

@@ -1,5 +1,17 @@
 import { useEffect, useState } from 'react'
+import YAML from 'yaml'
 import { createWorkflowDef, listTaskDefs, listWorkflowDefs } from '../../ZWorkflowClient'
+
+function parseOptionalYaml(value, label) {
+  const trimmedValue = value.trim()
+  if (!trimmedValue) return { value: null }
+
+  try {
+    return { value: YAML.parse(trimmedValue) }
+  } catch (err) {
+    return { error: `Invalid ${label} YAML: ${err.message}` }
+  }
+}
 
 const STEP_TYPES = [
   { label: 'TASK', value: 1 },
@@ -54,6 +66,8 @@ export default function NewWorkflowDefinition() {
   const [version, setVersion] = useState('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [inputSchemaText, setInputSchemaText] = useState('')
+  const [outputSchemaText, setOutputSchemaText] = useState('')
   const [steps, setSteps] = useState([createEmptyStep()])
   const [stepDeps, setStepDeps] = useState([])
   const [workflowDefs, setWorkflowDefs] = useState([])
@@ -126,6 +140,12 @@ export default function NewWorkflowDefinition() {
       }
     }
 
+    const inputSchema = parseOptionalYaml(inputSchemaText, 'input schema')
+    if (inputSchema.error) return { error: inputSchema.error }
+
+    const outputSchema = parseOptionalYaml(outputSchemaText, 'output schema')
+    if (outputSchema.error) return { error: outputSchema.error }
+
     const apiSteps = []
     for (const step of addedSteps) {
       const stepDetails = {
@@ -178,8 +198,8 @@ export default function NewWorkflowDefinition() {
           source_step_def_key: stepDep.source_step_def_key,
           destination_step_def_key: stepDep.destination_step_def_key,
         })),
-        input_schema: null,
-        output_schema: null,
+        input_schema: inputSchema.value,
+        output_schema: outputSchema.value,
       },
     }
   }
@@ -256,6 +276,30 @@ export default function NewWorkflowDefinition() {
             required
           />
         </label>
+
+        <div className="form-grid two-columns">
+          <label className="form-field">
+            <span>Input Schema YAML</span>
+            <textarea
+              className="code-textarea"
+              value={inputSchemaText}
+              onChange={event => setInputSchemaText(event.target.value)}
+              rows={10}
+              spellCheck="false"
+            />
+          </label>
+
+          <label className="form-field">
+            <span>Output Schema YAML</span>
+            <textarea
+              className="code-textarea"
+              value={outputSchemaText}
+              onChange={event => setOutputSchemaText(event.target.value)}
+              rows={10}
+              spellCheck="false"
+            />
+          </label>
+        </div>
 
         <section className="form-section">
           <div className="form-section-header">

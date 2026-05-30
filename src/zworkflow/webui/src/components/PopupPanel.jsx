@@ -18,7 +18,15 @@ export default function PopupPanel({ title, ariaLabel, className = '', onClose, 
 
     stackItemRef.current = stackItem
     popupStack.push(stackItem)
-    panelRef.current?.focus()
+
+    const panel = panelRef.current
+    if (panel) {
+      const rect = panel.getBoundingClientRect()
+      panel.style.left = `${rect.left}px`
+      panel.style.top = `${rect.top}px`
+      panel.style.transform = 'none'
+      panel.focus()
+    }
 
     const handleWindowKeyDown = event => {
       if (event.key !== 'Escape') return
@@ -108,7 +116,9 @@ export default function PopupPanel({ title, ariaLabel, className = '', onClose, 
             Close
           </button>
         </div>
-        {children}
+        <div className="popup-content">
+          {children}
+        </div>
       </section>
     </div>
   )
