@@ -189,6 +189,13 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
   const steps = workflow.steps ?? []
   const stepsById = Object.fromEntries(steps.map(step => [step.id, step]))
   const stepDeps = workflow.workflow_def?.step_deps ?? []
+  const workflowDefUrl = workflow.workflow_def
+    ? '#' + new URLSearchParams({
+      activeView: 'workflow-definitions',
+      workflowDefId: workflow.workflow_def.id,
+      workflowDefView: 'detail',
+    }).toString()
+    : null
   const dagNodes = steps.map(step => {
     const state = getStepState(step)
 
@@ -274,7 +281,13 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
           </tr>
           <tr>
             <td className="detail-label">Workflow Def</td>
-            <td>{workflow.workflow_def?.name} v{workflow.workflow_def?.version}</td>
+            <td>
+              {workflow.workflow_def && (
+                <a href={workflowDefUrl} className="step-def-link">
+                  {workflow.workflow_def.name} v{workflow.workflow_def.version}
+                </a>
+              )}
+            </td>
           </tr>
           {workflow.input && (
             <tr>
@@ -338,6 +351,14 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
         </table>
       )}
 
+      <h3 className="section-subheading">Step Dependencies</h3>
+      <div>
+        <DagView
+          nodes={dagNodes}
+          connections={stepDeps.map(dep => ({source: dep.source_step_def_key, destination: dep.destination_step_def_key}))}
+        />
+      </div>
+
       <h3 className="section-subheading">Events</h3>
       {eventsError && <div className="form-error workflow-action-error">{eventsError}</div>}
       {events.length === 0 ? (
@@ -364,14 +385,6 @@ export default function Workflow({ workflow, onWorkflowUpdated }) {
           </tbody>
         </table>
       )}
-
-      <h3 className="section-subheading">Step Dependencies</h3>
-      <div>
-        <DagView
-          nodes={dagNodes}
-          connections={stepDeps.map(dep => ({source: dep.source_step_def_key, destination: dep.destination_step_def_key}))}
-        />
-      </div>
 
       {selectedJson && (
         <PopupPanel
