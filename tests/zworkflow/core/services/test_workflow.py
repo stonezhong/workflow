@@ -10,8 +10,9 @@ from sqlalchemy.orm import Session
 from zworkflow.core.services import WorkflowService, WorkflowDefService, EventService
 from zworkflow.core.models import TaskDef, NameAndVersion, CreateTaskDefDetails, StepDefDepDetails
 from zworkflow.core.models import CreateWorkflowDetails, CreateWorkflowDefDetails, CreateWorkflowDefStepDetails
-from zworkflow.dal.dtos import create_all_tables, StepDefType, WorkflowState
+from zworkflow.dal.dtos import create_all_tables, StepDefType, WorkflowState, TaskState
 from zworkflow.core.exceptions import WorkflowInputSchemaViolation, FailedToSubmitWorkflow
+from zworkflow.dal.daos import TaskDAO, WorkflowDAO
 
 ########################################################################
 # 这个文件测试WorkflowService
@@ -400,4 +401,86 @@ class IntegrationTestSuit:
                 with pytest.raises(FailedToSubmitWorkflow):
                     await workflow_service.create_workflow(create_workflow_details, session = session)
 
+    @pytest.mark.usefixtures("temporal_worker")
+    @pytest.mark.usefixtures("temporal_server")
+    @pytest.mark.asyncio
+    async def test_simple4(
+        self, 
+        real_engine:Engine, 
+        workflow_def_service: WorkflowDefService,
+        workflow_service: WorkflowService,
+        event_service: EventService
+    ):
+        print()
+        print("###################################################")
+        print("# Integration test: retry failed workflow")
+        print("# Expect          : retry succeeded")
+        print("###################################################")
+        print()
+        self.cleanup_database(real_engine)
 
+        # 创建加法和乘法任务定义
+        self.create_add_task_def(real_engine, workflow_def_service)
+        self.create_mul_task_def(real_engine, workflow_def_service)
+        # 创建一个简单的Workflow定义
+        self.create_simple_workflow_def(real_engine, workflow_def_service)
+
+        # 现在创建一个workflow
+        with Session(real_engine) as session:
+            with session.begin():
+                create_workflow_details = CreateWorkflowDetails(
+                    workflow_def_nv = NameAndVersion(
+                        name = "test",
+                        version = "1.0"
+                    ),
+                    description = "run test workflow",
+                    title = "run test workflow",
+                    input = {"x": 1, "y": 2}
+                )
+
+                workflow = await workflow_service.create_workflow(create_workflow_details, session = session)
+                print(f"Workflow is created, id = {workflow.id}")
+
+
+        # 等待workflow结束
+        for _ in range(10):
+            with Session(real_engine) as session:
+                with session.begin():
+                    workflow = workflow_service.get_workflow(workflow.id, session=session)
+            print(f"Workflow state: {workflow.state}")
+            if workflow.state in (WorkflowState.SUCCEEDED, WorkflowState.FAILED):
+                break
+            time.sleep(1)
+        
+        task_dao = TaskDAO()
+        workflow_dao = WorkflowDAO()
+
+        # 现在人为将这个workflow改成FAILED状态
+        with Session(real_engine) as session:
+            with session.begin():
+                workflow_dto = workflow_dao.get(workflow.id, session=session)
+                task1_dto = task_dao.get(workflow.steps[0].invoke_task.id, session=session)
+                
+                task1_dto.state = TaskState.FAILED
+                workflow_dto.state = WorkflowState.FAILED
+                workflow_dto.output = None
+                session.flush()
+        
+        # 现在重试这个workflow
+        with Session(real_engine) as session:
+            with session.begin():
+                await workflow_service.restart_failed_workflow(workflow.id, session=session)
+
+
+        # 等待重试结束
+        for _ in range(10):
+            with Session(real_engine) as session:
+                with session.begin():
+                    workflow = workflow_service.get_workflow(workflow.id, session=session)
+            print(f"Workflow state: {workflow.state}")
+            if workflow.state in (WorkflowState.SUCCEEDED, WorkflowState.FAILED):
+                break
+            time.sleep(1)
+
+        # 确认重试结果正确
+        assert workflow.output['result'] == 3
