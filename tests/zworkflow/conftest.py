@@ -6,7 +6,7 @@ from sqlalchemy import create_engine, Engine
 from sqlalchemy.orm import Session
 from zworkflow.dal.dtos import create_all_tables, WorkflowDTO, TaskDefDTO, WorkflowDefDTO, \
   StepDefDTO, StepDefType, WorkflowState, TaskDTO, TaskState, StepDTO, StepDefDepDTO
-from zworkflow.core.services import WorkflowDefService, WorkflowService
+from zworkflow.core.services import WorkflowDefService, WorkflowService, EventService
 from zworkflow.dal.daos import TaskDefDAO, WorkflowDefDAO, StepDefDAO, \
   StepDefDepDAO, SchemaDAO, StepDAO, TaskDAO, WorkflowDAO, EventDAO
 
@@ -28,6 +28,10 @@ def workflow_def_service() -> WorkflowDefService:
 @pytest.fixture(scope="function")  # shared across all tests in the module
 def workflow_service() -> WorkflowService:
     return WorkflowService()
+
+@pytest.fixture(scope="function")  # shared across all tests in the module
+def event_service() -> EventService:
+    return EventService()
 
 @pytest.fixture(scope="function")  # shared across all tests in the module
 def task_def_dao() -> TaskDefDAO:

@@ -38,4 +38,18 @@ CREATE DATABASE testdb;
 # Assuming your current directory is project root
 source ~/.venvs/zworkflow_unit_test/bin/activate
 CONFIG=$PWD/sample_worker/zworkflow.yaml VENV_DIR=~/.venvs/zworkflow_unit_test pytest -m "integration" -v -s --cov=zworkflow --cov-report=html tests/
+
+# Only run a single integration test
+source ~/.venvs/zworkflow_unit_test/bin/activate
+CONFIG=$PWD/sample_worker/zworkflow.yaml \
+VENV_DIR=~/.venvs/zworkflow_unit_test \
+pytest -v -s tests/zworkflow/core/services/test_workflow.py::IntegrationTestSuit::test_simple1
+```
+
+# Run All Tests And Get Coverage Report
+```bash
+# Assuming your current directory is project root
+source ~/.venvs/zworkflow_unit_test/bin/activate
+CONFIG=$PWD/sample_worker/zworkflow.yaml VENV_DIR=~/.venvs/zworkflow_unit_test pytest -v -s --cov=zworkflow --cov-report=html tests/
+
 ```

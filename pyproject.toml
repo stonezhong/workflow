@@ -44,3 +44,8 @@ artifacts = [
 artifacts = [
     "src/zworkflow/webui/dist/**/*",
 ]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: integration tests",
+]

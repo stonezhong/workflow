@@ -371,7 +371,7 @@ class WorkflowService:
                     schema = workflow_def.input_schema
                 )
             except ValidationError as e:
-                logger.error(f"create_workflow: input does not match schema", e)
+                logger.exception(f"create_workflow: input does not match schema")
                 raise WorkflowInputSchemaViolation(str(e)) from e
 
         workflow_dto = WorkflowDTO(

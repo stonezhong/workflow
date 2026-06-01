@@ -199,10 +199,13 @@ async def workflow_list(session: Session = Depends(get_db)) -> List[APIWorkflow]
     description = "Create a workflow"
 )
 async def workflow_create(create_workflow_details:APICreateWorkflowDetails, session: Session = Depends(get_db)) -> APIWorkflow:
-    workflow = await workflow_service.create_workflow(
-        api_mapper.create_workflow_details_to_model(create_workflow_details), session=session
-    )
-    return api_mapper.workflow_to_api(workflow)
+    try:
+        workflow = await workflow_service.create_workflow(
+            api_mapper.create_workflow_details_to_model(create_workflow_details), session=session
+        )
+        return api_mapper.workflow_to_api(workflow)
+    except (core_exceptions.BadInput, core_exceptions.WorkflowInputSchemaViolation) as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.post(
     "/workflows/{workflow_id}/restart",
