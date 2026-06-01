@@ -28,7 +28,13 @@ Please do not run zworkflow server while you are running integration test.
 
 You need to modify file `sample_worker/zworkflow.yaml` to match your local environment
 
+```SQL
+-- Create a test database in postgresql
+CREATE DATABASE testdb;
+```
+
 ```bash
+
 # Assuming your current directory is project root
 source ~/.venvs/zworkflow_unit_test/bin/activate
 CONFIG=$PWD/sample_worker/zworkflow.yaml VENV_DIR=~/.venvs/zworkflow_unit_test pytest -m "integration" -v -s --cov=zworkflow --cov-report=html tests/

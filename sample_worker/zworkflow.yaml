@@ -28,7 +28,7 @@ logging:
     handlers: [console, file]
 
 database:
-  url: postgresql+psycopg2://zworkflow:foobar@localhost:5432/mydb
+  url: postgresql+psycopg2://zworkflow:foobar@localhost:5432/testdb
   connect_args: {}
   create_tables: True
 

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from zworkflow.core.services import WorkflowService, WorkflowDefService
 from zworkflow.core.models import TaskDef, NameAndVersion, CreateTaskDefDetails, StepDefDepDetails
 from zworkflow.core.models import CreateWorkflowDetails, CreateWorkflowDefDetails, CreateWorkflowDefStepDetails
-from zworkflow.dal.dtos import StepDefType, WorkflowState
+from zworkflow.dal.dtos import create_all_tables, StepDefType, WorkflowState
 
 ########################################################################
 # 这个文件测试WorkflowService
@@ -25,9 +25,10 @@ def test_list(engine:Engine, workflow_service: WorkflowService, simple_saved_wor
 @pytest.fixture(scope="function")
 def real_engine():
     engine:Engine = create_engine(
-        "postgresql+psycopg2://zworkflow:foobar@localhost:5432/mydb",
+        "postgresql+psycopg2://zworkflow:foobar@localhost:5432/testdb",
         connect_args = {}
     )
+    create_all_tables(engine)
     yield engine
     engine.dispose()
 
@@ -73,7 +74,7 @@ def temporal_worker():
         stdout=log_file,
         stderr=subprocess.STDOUT,
         text=True,
-        cwd="/mnt/DATA_DISK/projects/workflow/sample_worker",
+        cwd=os.path.join(os.getcwd(), "sample_worker"),       
     )
     print(f"Temporal worker is up, pid = {worker_proc.pid}")
 
