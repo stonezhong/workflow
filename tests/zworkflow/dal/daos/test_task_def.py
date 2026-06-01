@@ -4,7 +4,7 @@ logger = logging.getLogger(__name__)
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 from zworkflow.dal.dtos import TaskDefDTO
-from zworkflow.dal.daos import TaskDefDAO
+from zworkflow.dal.daos import TaskDefDAO, WorkflowDAO
 
 def test_task_def_dao(engine:Engine, task_def_dao:TaskDefDAO):
     # 保存一个TaskDefDTO
@@ -46,3 +46,17 @@ def test_task_def_dao(engine:Engine, task_def_dao:TaskDefDAO):
         assert task_def_dtos[0].version == task_def_dto.version
         assert task_def_dtos[0].description == task_def_dto.description
         assert task_def_dtos[0].title == task_def_dto.title
+
+def test_task_def_dao_get_by_name_and_version(engine:Engine, workflow_dao:WorkflowDAO, task_def_dao:TaskDefDAO, simple_saved_workflow_id:str):
+    with Session(engine) as session:
+        with session.begin():
+            workflow_dto = workflow_dao.get(simple_saved_workflow_id, session=session)
+
+            task_def_dto = task_def_dao.get_by_name_and_vesion(
+                workflow_dto.workflow_def.steps[0].invoke_task_def.name,
+                workflow_dto.workflow_def.steps[0].invoke_task_def.version,
+                session = session
+            )
+            assert task_def_dto is not None
+            assert task_def_dto.name == "foo"
+            assert task_def_dto.version == "1.0"

@@ -7,6 +7,7 @@
     * [Step 4: define 2 sample tasks](#step-4-define-2-sample-tasks)
     * [Step 5: Define a test workflow](#step-5-define-a-test-workflow)
     * [Step 6: Start sample workflow](#step-6-start-sample-workflow)
+* [Unit Test](documents/test.md)    
 
 # Brief
 ZWorkflow is a workflow manager, it allows you to build workflow without wrting code.
@@ -247,3 +248,4 @@ python -m zworkflow.executor --handlers handlers.yaml
 After you click "Create Workflow", you can watch the execution of this workflow
 ![View Workflow](./documents/images/workflow_1.png)
 ![View Workflow](./documents/images/workflow_2.png)
+

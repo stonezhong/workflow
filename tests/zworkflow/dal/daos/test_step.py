@@ -124,3 +124,15 @@ def test_step_dao(
             assert step_dto.step_def_id == step_def_id
             assert step_dto.invoke_task_id == task_id
             assert step_dto.invoke_workflow_id is None
+
+def test_step_dao_reset(engine:Engine, workflow_dao:WorkflowDAO, step_dao:StepDAO, simple_saved_workflow_id:str):
+    with Session(engine) as session:
+        with session.begin():
+            workflow_dto = workflow_dao.get(simple_saved_workflow_id, session=session)
+            step_dto = workflow_dto.steps[0]
+            step_dao.reset(step_dto, session=session)
+            assert step_dto.invoke_task_id is None
+            assert step_dto.invoke_task is None
+            assert step_dto.invoke_workflow_id is None
+            assert step_dto.invoke_workflow is None
+

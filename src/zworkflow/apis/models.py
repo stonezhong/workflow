@@ -21,6 +21,12 @@ class APITaskState(enum.Enum):
     SUCCEEDED   = "SUCCEEDED"
     FAILED      = "FAILED"
 
+class APIStepState(enum.Enum):
+    CREATED     = "CREATED"
+    SUBMITTED   = "SUBMITTED"
+    RUNNING     = "RUNNING"
+    SUCCEEDED   = "SUCCEEDED"
+    FAILED      = "FAILED"
 
 class APIWorkflowDef(BaseModel):
     id: str

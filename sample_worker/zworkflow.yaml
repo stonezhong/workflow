@@ -1,0 +1,38 @@
+logging:
+  version: 1
+  disable_existing_loggers: false
+  formatters:
+    standard:
+      format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  handlers:
+    console:
+      class: logging.StreamHandler
+      formatter: standard
+      stream: ext://sys.stdout
+    file:
+      class: logging.FileHandler
+      formatter: standard
+      filename: /mnt/DATA_DISK/projects/workflow/sample_worker/logs/zworkflow.log
+      encoding: utf-8
+  loggers:
+    sqlalchemy.engine:
+      level: WARNING
+    uvicorn.access:
+      level: WARNING
+    temporalio.worker:
+      level: WARNING
+    temporalio.activity:
+      level: WARNING
+  root:
+    level: DEBUG
+    handlers: [console, file]
+
+database:
+  url: postgresql+psycopg2://zworkflow:foobar@localhost:5432/mydb
+  connect_args: {}
+  create_tables: True
+
+temporal:
+  host: localhost
+  port: 7233
+  queue_name: my-task-queue

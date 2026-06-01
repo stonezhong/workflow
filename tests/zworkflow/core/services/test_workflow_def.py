@@ -1,12 +1,20 @@
 import logging
 logger = logging.getLogger(__name__)
 
+import pytest
+from unittest.mock import AsyncMock, patch, ANY
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
-from zworkflow.dal.dtos import create_all_tables, StepDefType, WorkflowState, TaskState
-from zworkflow.core.services import WorkflowDefService, WorkflowService
-from zworkflow.core.models import CreateWorkflowDefDetails, WorkflowDef, CreateTaskDefDetails, TaskDef, CreateWorkflowDefStepDetails, NameAndVersion, StepDefDepDetails
-from zworkflow.core.models import CreateWorkflowDetails
+from zworkflow.dal.dtos import StepDefType, WorkflowState
+from zworkflow.dal.daos import WorkflowDefDAO
+from zworkflow.core.services import WorkflowService, WorkflowDefService
+from zworkflow.core.models import TaskDef, NameAndVersion, CreateTaskDefDetails, StepDefDepDetails
+from zworkflow.core.models import CreateWorkflowDetails, CreateWorkflowDefDetails, CreateWorkflowDefStepDetails
+from zworkflow.core.exceptions import InvalidJSONSchema, BadInput
+
+########################################################################
+# 这个文件测试WorkflowDefService
+########################################################################
 
 def is_task_def_same(task_def1: TaskDef|None, task_def2: TaskDef|None) -> bool:
     if task_def1 is None and task_def2 is None:
@@ -30,223 +38,489 @@ def is_task_def_same(task_def1: TaskDef|None, task_def2: TaskDef|None) -> bool:
     if task_def1.output_schema != task_def2.output_schema:
         return False
     return True
-    
-# 测试创建workflow def
-def test_task_workflow_def_creation(
-        engine:Engine, 
-        workflow_def_service: WorkflowDefService
-):
-    with Session(engine) as session:
-        with session.begin() as transaction:
-            # 定义一个task def
-            create_task_def_details = CreateTaskDefDetails(
-                name = "foo-task",
-                version = "1.0",
-                description = "blah",
-                title = "blah",
-                input_schema = None,
-                output_schema = None
-            )
-            task_def:TaskDef = workflow_def_service.create_task_def(create_task_def_details, session = session)
 
-            # 创建一个workflow def
-            create_workflow_def_details = CreateWorkflowDefDetails(
-                name = "foo-workflow",
-                version = "1.0",
-                description = "blah",
-                title = "blah",
-                steps = [
-                    CreateWorkflowDefStepDetails(
-                        key = "step1",
-                        description = "step1",
-                        title = "step1",
-                        type = StepDefType.TASK,
-                        input = '{"x": 1, "y": 2}',
-                        invoke_task_def_nv = NameAndVersion(
-                            name = "foo-task", version = "1.0"
-                        )
-                    ),
-                    CreateWorkflowDefStepDetails(
-                        key = "step2",
-                        description = "step2",
-                        title = "step2",
-                        type = StepDefType.TASK,
-                        input = '{"x": 2, "y": 3}',
-                        invoke_task_def_nv = NameAndVersion(
-                            name = "foo-task", version = "1.0"
-                        )
-                    )
-                ],
-                step_deps = [
-                    StepDefDepDetails(source_step_def_key="step1", destination_step_def_key="step2")
-                ],
-                input_schema = None,
-                output_schema = None
+# 测试WorkflowDefService.list
+def test_list(engine:Engine, workflow_def_service: WorkflowDefService, simple_workflow_def_id: str):
+    with Session(engine) as session:
+        with session.begin():
+            workflow_defs = workflow_def_service.list(session=session)
+            assert len(workflow_defs) == 1
+            workflow_def = workflow_defs[0]
+            assert workflow_def.id == simple_workflow_def_id
+
+# 测试WorkflowDefService.list
+def test_get_by_name_and_version(engine:Engine, workflow_def_service: WorkflowDefService, simple_workflow_def_id: str):
+    with Session(engine) as session:
+        with session.begin():
+            workflow_def = workflow_def_service.get_by_name_and_version(
+                name = "simple-workflow-def", version = "1.0", session = session
             )
-            workflow_def:WorkflowDef = workflow_def_service.create_workflow_def(create_workflow_def_details, session = session)
-            
-            # 检查task_def的正确性
-            assert task_def.name == "foo-task"
+            assert workflow_def is not None
+
+# 测试WorkflowDefService.get_workflow_def
+def test_get_workflow_def(engine:Engine, workflow_def_service: WorkflowDefService, simple_workflow_def_id: str):
+    with Session(engine) as session:
+        with session.begin():
+            workflow_def = workflow_def_service.get_workflow_def(simple_workflow_def_id, session=session)
+            assert workflow_def is not None
+            assert workflow_def.id == simple_workflow_def_id
+
+# 测试WorkflowDefService.list_tasks
+def test_list_tasks(engine:Engine, workflow_def_service: WorkflowDefService, simple_workflow_def_id: str):
+    with Session(engine) as session:
+        with session.begin():
+            task_defs = workflow_def_service.list_tasks(session=session)
+            assert len(task_defs) == 1
+            assert task_defs[0].name == "foo"
+            assert task_defs[0].version == "1.0"
+
+# 测试WorkflowDefService.get_task_def
+def test_get_task_def(engine:Engine, workflow_def_service: WorkflowDefService, workflow_def_dao:WorkflowDefDAO, simple_workflow_def_id: str):
+    with Session(engine) as session:
+        with session.begin():
+            workflow_def_dto = workflow_def_dao.get(simple_workflow_def_id, session=session)
+
+            task_def_id = workflow_def_dto.steps[0].invoke_task_def.id
+            task_def = workflow_def_service.get_task_def(task_def_id, session=session)
+            assert task_def is not None
+            assert task_def.id == task_def_id
+            assert task_def.name == "foo"
             assert task_def.version == "1.0"
-            assert task_def.description == "blah"
-            assert task_def.title == "blah"
-            assert task_def.input_schema is None
-            assert task_def.output_schema is None
+            assert task_def.description == "description"
+            assert task_def.title == "title"
+            assert task_def.input_schema is not None
+            assert task_def.output_schema is not None
 
-            # 检查workflow_def的正确性
-            assert workflow_def.name == "foo-workflow"
-            assert workflow_def.version == "1.0"
-            assert workflow_def.description == "blah"
-            assert workflow_def.title == "blah"
-            assert len(workflow_def.steps) == 2
-            sorted_steps = sorted(workflow_def.steps, key = lambda step: step.key)
+class CreateTaskDef:
+    __test__ = True
 
-            assert sorted_steps[0].workflow_def is workflow_def
-            assert sorted_steps[0].key == "step1"
-            assert sorted_steps[0].description == "step1"
-            assert sorted_steps[0].title == "step1"
-            assert sorted_steps[0].type == StepDefType.TASK
-            assert sorted_steps[0].input == '{"x": 1, "y": 2}'
-            assert is_task_def_same(sorted_steps[0].invoke_task_def, task_def)
-            assert sorted_steps[0].invoke_workflow_def is None
+    # 测试WorkflowDefService.create_task_def
+    def test_successful(self, engine:Engine, workflow_def_service: WorkflowDefService):
+        with Session(engine) as session:
+            with session.begin():
+                # 成功创建task def的测试
+                task_input_schema = {
+                    "type": "object",
+                    "required": ["x", "y"],
+                    "properties": {
+                        "x": {
+                            "type": "integer"
+                        },
+                        "y": {
+                            "type": "integer"
+                        }
+                    },
+                    "additionalProperties": False
+                }
+                task_output_schema = {
+                    "type": "object",
+                    "required": ["result"],
+                    "properties": {
+                        "result": {
+                            "type": "integer"
+                        }
+                    },
+                    "additionalProperties": False
+                }
 
-            assert sorted_steps[1].workflow_def is workflow_def
-            assert sorted_steps[1].key == "step2"
-            assert sorted_steps[1].description == "step2"
-            assert sorted_steps[1].title == "step2"
-            assert sorted_steps[1].type == StepDefType.TASK
-            assert sorted_steps[1].input == '{"x": 2, "y": 3}'
-            assert is_task_def_same(sorted_steps[1].invoke_task_def, task_def)
-            assert sorted_steps[1].invoke_workflow_def is None
+                create_task_def_details = CreateTaskDefDetails(
+                    name = "foo",
+                    version = "1.0",
+                    description="blah-d",
+                    title = "blah-t",
+                    input_schema=task_input_schema,
+                    output_schema=task_output_schema
+                )
+                task_def = workflow_def_service.create_task_def(create_task_def_details, session=session)
+                assert task_def is not None
+                assert task_def.name == "foo"
+                assert task_def.version == "1.0"
+                assert task_def.description == "blah-d"
+                assert task_def.title == "blah-t"
+                assert task_def.input_schema == task_input_schema
+                assert task_def.output_schema == task_output_schema
 
-            assert len(workflow_def.step_deps) == 1
-            workflow_def.step_deps[0].workflow_def is workflow_def
-            workflow_def.step_deps[0].source_step_def_key == "step1"
-            workflow_def.step_deps[0].destination_step_def_key == "step2"
+    # 测试WorkflowDefService.create_task_def
+    def test_bad_input_schema(self, engine:Engine, workflow_def_service: WorkflowDefService):
+        with Session(engine) as session:
+            with session.begin():
+                # 模拟输入schema有错
+                task_input_schema = {
+                    "type": "object1",
+                    "required": ["x", "y"],
+                    "properties": {
+                        "x": {
+                            "type": "integer"
+                        },
+                        "y": {
+                            "type": "integer"
+                        }
+                    },
+                    "additionalProperties": False
+                }
+                task_output_schema = {
+                    "type": "object",
+                    "required": ["result"],
+                    "properties": {
+                        "result": {
+                            "type": "integer"
+                        }
+                    },
+                    "additionalProperties": False
+                }
 
-            assert workflow_def.input_schema is None
-            assert workflow_def.output_schema is None
+                create_task_def_details = CreateTaskDefDetails(
+                    name = "foo",
+                    version = "1.0",
+                    description="blah-d",
+                    title = "blah-t",
+                    input_schema=task_input_schema,
+                    output_schema=task_output_schema
+                )
+                with pytest.raises(InvalidJSONSchema):
+                    workflow_def_service.create_task_def(create_task_def_details, session=session)
 
-# 测试创建workflow
-def test_task_workflow_creation(
-        engine:Engine, 
-        workflow_def_service: WorkflowDefService,
-        workflow_service: WorkflowService
-):
-    with Session(engine) as session:
-        with session.begin() as transaction:
-            # 定义一个task def
-            create_task_def_details = CreateTaskDefDetails(
-                name = "foo-task",
-                version = "1.0",
-                description = "blah",
-                title = "blah",
-                input_schema = None,
-                output_schema = None
-            )
-            task_def:TaskDef = workflow_def_service.create_task_def(create_task_def_details, session = session)
+    # 测试WorkflowDefService.create_task_def
+    def test_bad_output_schema(self, engine:Engine, workflow_def_service: WorkflowDefService):
+        with Session(engine) as session:
+            with session.begin():
+                # 模拟输出schema有错
+                task_input_schema = {
+                    "type": "object",
+                    "required": ["x", "y"],
+                    "properties": {
+                        "x": {
+                            "type": "integer"
+                        },
+                        "y": {
+                            "type": "integer"
+                        }
+                    },
+                    "additionalProperties": False
+                }
+                task_output_schema = {
+                    "type": "object1",
+                    "required": ["result"],
+                    "properties": {
+                        "result": {
+                            "type": "integer"
+                        }
+                    },
+                    "additionalProperties": False
+                }
 
-            # 创建一个workflow def
-            create_workflow_def_details = CreateWorkflowDefDetails(
-                name = "foo-workflow",
-                version = "1.0",
-                description = "blah",
-                title = "blah",
-                steps = [
-                    CreateWorkflowDefStepDetails(
-                        key = "step1",
-                        description = "step1",
-                        title = "step1",
-                        type = StepDefType.TASK,
-                        input = '{"x": 1, "y": 2}',
-                        invoke_task_def_nv = NameAndVersion(
-                            name = "foo-task", version = "1.0"
+                create_task_def_details = CreateTaskDefDetails(
+                    name = "foo",
+                    version = "1.0",
+                    description="blah-d",
+                    title = "blah-t",
+                    input_schema=task_input_schema,
+                    output_schema=task_output_schema
+                )
+                with pytest.raises(InvalidJSONSchema):
+                    workflow_def_service.create_task_def(create_task_def_details, session=session)
+
+class CreateWorkflowDef:
+    __test__ = True
+
+    input_schema = {
+        "type": "object",
+        "required": ["x", "y"],
+        "properties": {
+            "x": {
+                "type": "integer"
+            },
+            "y": {
+                "type": "integer"
+            }
+        },
+        "additionalProperties": False
+    }
+    output_schema = {
+        "type": "object",
+        "required": ["result"],
+        "properties": {
+            "result": {
+                "type": "integer"
+            }
+        },
+        "additionalProperties": False
+    }
+
+    def create_task_def(self, workflow_def_service:WorkflowDefService, session:Session) -> TaskDef:
+        create_task_def_details = CreateTaskDefDetails(
+            name = "foo",
+            version = "1.0",
+            description="blah-d",
+            title = "blah-t",
+            input_schema=self.input_schema,
+            output_schema=self.output_schema
+        )
+        return workflow_def_service.create_task_def(create_task_def_details, session=session)
+
+    def test_successful(self, engine:Engine, workflow_def_service: WorkflowDefService, workflow_def_dao:WorkflowDefDAO):
+        with Session(engine) as session:
+            with session.begin():
+                task_def = self.create_task_def(workflow_def_service, session)
+                create_workflow_def_details = CreateWorkflowDefDetails(
+                    name = "my-test-workflow-def",
+                    version = "1.0",
+                    description = "blah-d",
+                    title = "blah-t",
+                    steps = [
+                        CreateWorkflowDefStepDetails(
+                            key = "step1",
+                            description = "step1-d",
+                            title = "step1-t",
+                            type = StepDefType.TASK,
+                            input = '{"x": workflow.input.x, "y": workflow.input.y}',
+                            is_return_step = False,
+                            invoke_task_def_nv = NameAndVersion(name=task_def.name, version=task_def.version)
+                        ),
+                        CreateWorkflowDefStepDetails(
+                            key = "step2",
+                            description = "step2-d",
+                            title = "step2-t",
+                            type = StepDefType.TASK,
+                            input = '{"x": workflow.input.x, "y": workflow.input.y}',
+                            is_return_step = True,
+                            invoke_task_def_nv = NameAndVersion(name=task_def.name, version=task_def.version)
+                        ),
+                    ],
+                    step_deps = [ 
+                        StepDefDepDetails(source_step_def_key = "step1",destination_step_def_key = "step2") 
+                    ],
+                    input_schema = self.input_schema,
+                    output_schema = self.output_schema
+                )
+                workflow_def_service.create_workflow_def(create_workflow_def_details, session=session)
+
+    def test_successful_with_nested_workflow(self, engine:Engine, workflow_def_service: WorkflowDefService, workflow_def_dao:WorkflowDefDAO, simple_workflow_def_id:str):
+        with Session(engine) as session:
+            with session.begin():
+                sample_workflow_def_dto = workflow_def_dao.get(simple_workflow_def_id, session=session)
+                assert sample_workflow_def_dto is not None
+
+                create_workflow_def_details = CreateWorkflowDefDetails(
+                    name = "my-test-workflow-def",
+                    version = "1.0",
+                    description = "blah-d",
+                    title = "blah-t",
+                    steps = [
+                        CreateWorkflowDefStepDetails(
+                            key = "step1",
+                            description = "step1-d",
+                            title = "step1-t",
+                            type = StepDefType.WORKFLOW,
+                            input = '{"x": workflow.input.x, "y": workflow.input.y}',
+                            is_return_step = False,
+                            invoke_workflow_def_nv = NameAndVersion(name=sample_workflow_def_dto.name, version=sample_workflow_def_dto.version)
+                        ),
+                    ],
+                    step_deps = [  ],
+                    input_schema = self.input_schema,
+                    output_schema = self.output_schema
+                )
+                workflow_def_service.create_workflow_def(create_workflow_def_details, session=session)
+
+    def test_dup_step_key(self, engine:Engine, workflow_def_service: WorkflowDefService, workflow_def_dao:WorkflowDefDAO):
+        with Session(engine) as session:
+            with session.begin():
+                task_def = self.create_task_def(workflow_def_service, session)
+                # 重复的step key，期待异常
+                create_workflow_def_details = CreateWorkflowDefDetails(
+                    name = "my-test-workflow-def",
+                    version = "1.0",
+                    description = "blah-d",
+                    title = "blah-t",
+                    steps = [
+                        CreateWorkflowDefStepDetails(
+                            key = "step1",
+                            description = "step1-d",
+                            title = "step1-t",
+                            type = StepDefType.TASK,
+                            input = '{"x": workflow.input.x, "y": workflow.input.y}',
+                            is_return_step = True,
+                            invoke_task_def_nv = NameAndVersion(name=task_def.name, version=task_def.version)
+                        ),
+                        CreateWorkflowDefStepDetails(
+                            key = "step1",
+                            description = "step1-d",
+                            title = "step1-t",
+                            type = StepDefType.TASK,
+                            input = '{"x": workflow.input.x, "y": workflow.input.y}',
+                            is_return_step = True,
+                            invoke_task_def_nv = NameAndVersion(name=task_def.name, version=task_def.version)
                         )
-                    ),
-                    CreateWorkflowDefStepDetails(
-                        key = "step2",
-                        description = "step2",
-                        title = "step2",
-                        type = StepDefType.TASK,
-                        input = '{"x": 2, "y": 3}',
-                        invoke_task_def_nv = NameAndVersion(
-                            name = "foo-task", version = "1.0"
+                    ],
+                    step_deps = [ ],
+                    input_schema = self.input_schema,
+                    output_schema = self.output_schema
+                )
+                with pytest.raises(BadInput):
+                    workflow_def_service.create_workflow_def(create_workflow_def_details, session=session)
+ 
+    def test_using_undefined_step_key_in_source(self, engine:Engine, workflow_def_service: WorkflowDefService, workflow_def_dao:WorkflowDefDAO):
+        with Session(engine) as session:
+            with session.begin():
+                task_def = self.create_task_def(workflow_def_service, session)
+                # step_def_dep出现未定义的step key，期待异常
+                create_workflow_def_details = CreateWorkflowDefDetails(
+                    name = "my-test-workflow-def",
+                    version = "1.0",
+                    description = "blah-d",
+                    title = "blah-t",
+                    steps = [
+                        CreateWorkflowDefStepDetails(
+                            key = "step1",
+                            description = "step1-d",
+                            title = "step1-t",
+                            type = StepDefType.TASK,
+                            input = '{"x": workflow.input.x, "y": workflow.input.y}',
+                            is_return_step = True,
+                            invoke_task_def_nv = NameAndVersion(name=task_def.name, version=task_def.version)
                         )
-                    )
-                ],
-                step_deps = [
-                    StepDefDepDetails(source_step_def_key="step1", destination_step_def_key="step2")
-                ],
-                input_schema = None,
-                output_schema = None
-            )
-            workflow_def:WorkflowDef = workflow_def_service.create_workflow_def(create_workflow_def_details, session = session)
+                    ],
+                    step_deps = [ StepDefDepDetails(source_step_def_key = "step2",destination_step_def_key = "step1") ],
+                    input_schema = self.input_schema,
+                    output_schema = self.output_schema
+                )
+                with pytest.raises(BadInput):
+                    workflow_def_service.create_workflow_def(create_workflow_def_details, session=session)
 
-            # 创建一个workflow
-            create_workflow_details = CreateWorkflowDetails(
-                workflow_def_nv = NameAndVersion(
-                    name = "foo-workflow",
-                    version = "1.0"
-                ),
-                description = "run foo-workflow",
-                title = "run foo-workflow",
-                input = {"x": 1, "y": 1}
-            )
-            workflow = workflow_service.create_workflow_in_db(create_workflow_details, session=session)
-            # 检查workflow
-            assert workflow.workflow_def.name == "foo-workflow"
-            assert workflow.workflow_def.version == "1.0"
-            assert workflow.workflow_def.description == "blah"
-            assert workflow.workflow_def.title == "blah"
-            assert workflow.workflow_def.input_schema is None
-            assert workflow.workflow_def.output_schema is None
+    def test_using_undefined_step_key_in_destination(self, engine:Engine, workflow_def_service: WorkflowDefService, workflow_def_dao:WorkflowDefDAO):
+        with Session(engine) as session:
+            with session.begin():
+                task_def = self.create_task_def(workflow_def_service, session)
+                # step_deps中，目标出现非法step key，期待期待异常
+                create_workflow_def_details = CreateWorkflowDefDetails(
+                    name = "my-test-workflow-def",
+                    version = "1.0",
+                    description = "blah-d",
+                    title = "blah-t",
+                    steps = [
+                        CreateWorkflowDefStepDetails(
+                            key = "step1",
+                            description = "step1-d",
+                            title = "step1-t",
+                            type = StepDefType.TASK,
+                            input = '{"x": workflow.input.x, "y": workflow.input.y}',
+                            is_return_step = True,
+                            invoke_task_def_nv = NameAndVersion(name=task_def.name, version=task_def.version)
+                        )
+                    ],
+                    step_deps = [ StepDefDepDetails(source_step_def_key = "step1",destination_step_def_key = "step2") ],
+                    input_schema = self.input_schema,
+                    output_schema = self.output_schema
+                )
+                with pytest.raises(BadInput):
+                    workflow_def_service.create_workflow_def(create_workflow_def_details, session=session)
 
-            assert workflow.description == "run foo-workflow"
-            assert workflow.title == "run foo-workflow"
-            assert workflow.input == {"x": 1, "y": 1}
-            assert workflow.state == WorkflowState.CREATED
+    def test_task_step_without_nv(self, engine:Engine, workflow_def_service: WorkflowDefService, workflow_def_dao:WorkflowDefDAO):
+        with Session(engine) as session:
+            with session.begin():
+                # task step 未定义 invoke_task_def_nv，期待异常
+                create_workflow_def_details = CreateWorkflowDefDetails(
+                    name = "my-test-workflow-def",
+                    version = "1.0",
+                    description = "blah-d",
+                    title = "blah-t",
+                    steps = [
+                        CreateWorkflowDefStepDetails(
+                            key = "step1",
+                            description = "step1-d",
+                            title = "step1-t",
+                            type = StepDefType.TASK,
+                            input = '{"x": workflow.input.x, "y": workflow.input.y}',
+                            is_return_step = True,
+                            invoke_task_def_nv = None
+                        )
+                    ],
+                    step_deps = [  ],
+                    input_schema = self.input_schema,
+                    output_schema = self.output_schema
+                )
+                with pytest.raises(BadInput):
+                    workflow_def_service.create_workflow_def(create_workflow_def_details, session=session)
 
-            # we will see 2 steps            
-            assert len(workflow.steps) == 2
-            workflow_steps = sorted(workflow.steps, key = lambda step: step.step_def.key)
-            assert workflow_steps[0].step_def.key == "step1"
-            assert workflow_steps[0].step_def.description == "step1"
-            assert workflow_steps[0].step_def.title == "step1"
-            assert workflow_steps[0].step_def.type == StepDefType.TASK
-            assert workflow_steps[0].step_def.input == '{"x": 1, "y": 2}'
-            assert workflow_steps[0].step_def.invoke_task_def.name == 'foo-task'
-            assert workflow_steps[0].step_def.invoke_task_def.version == '1.0'
-            assert workflow_steps[0].step_def.invoke_task_def.description == 'blah'
-            assert workflow_steps[0].step_def.invoke_task_def.title == 'blah'
-            assert workflow_steps[0].step_def.invoke_task_def.input_schema is None
-            assert workflow_steps[0].step_def.invoke_task_def.output_schema is None
-            assert workflow_steps[0].step_def.invoke_workflow_def is None
-            assert workflow_steps[0].invoke_task.input is None  # input will be calcuated at execute time
-            assert workflow_steps[0].invoke_task.state == TaskState.CREATED
-            assert workflow_steps[0].invoke_task.task_def.name == "foo-task"
-            assert workflow_steps[0].invoke_task.task_def.version == "1.0"
-            assert workflow_steps[0].invoke_task.task_def.description == "blah"
-            assert workflow_steps[0].invoke_task.task_def.title == "blah"
-            assert workflow_steps[0].invoke_task.task_def.input_schema is None
-            assert workflow_steps[0].invoke_task.task_def.output_schema is None
+    def test_task_step_with_undefined_nv(self, engine:Engine, workflow_def_service: WorkflowDefService, workflow_def_dao:WorkflowDefDAO):
+        with Session(engine) as session:
+            with session.begin():
+                # invoke_task_def_nv 指向未定义的task def，期待异常
+                create_workflow_def_details = CreateWorkflowDefDetails(
+                    name = "my-test-workflow-def2",
+                    version = "1.0",
+                    description = "blah-d",
+                    title = "blah-t",
+                    steps = [
+                        CreateWorkflowDefStepDetails(
+                            key = "step1",
+                            description = "step1-d",
+                            title = "step1-t",
+                            type = StepDefType.TASK,
+                            input = '{"x": workflow.input.x, "y": workflow.input.y}',
+                            is_return_step = True,
+                            invoke_task_def_nv = NameAndVersion(name="undefined", version="9.9")
+                        )
+                    ],
+                    step_deps = [  ],
+                    input_schema = self.input_schema,
+                    output_schema = self.output_schema
+                )
+                with pytest.raises(BadInput):
+                    workflow_def_service.create_workflow_def(create_workflow_def_details, session=session)
 
-            assert workflow_steps[1].step_def.key == "step2"
-            assert workflow_steps[1].step_def.description == "step2"
-            assert workflow_steps[1].step_def.title == "step2"
-            assert workflow_steps[1].step_def.type == StepDefType.TASK
-            assert workflow_steps[1].step_def.input == '{"x": 2, "y": 3}'
-            assert workflow_steps[1].step_def.invoke_task_def.name == 'foo-task'
-            assert workflow_steps[1].step_def.invoke_task_def.version == '1.0'
-            assert workflow_steps[1].step_def.invoke_task_def.description == 'blah'
-            assert workflow_steps[1].step_def.invoke_task_def.title == 'blah'
-            assert workflow_steps[1].step_def.invoke_task_def.input_schema is None
-            assert workflow_steps[1].step_def.invoke_task_def.output_schema is None
-            assert workflow_steps[1].step_def.invoke_workflow_def is None
-            assert workflow_steps[1].invoke_task.input is None  # input will be calcuated at execute time
-            assert workflow_steps[1].invoke_task.state == TaskState.CREATED
-            assert workflow_steps[1].invoke_task.task_def.name == "foo-task"
-            assert workflow_steps[1].invoke_task.task_def.version == "1.0"
-            assert workflow_steps[1].invoke_task.task_def.description == "blah"
-            assert workflow_steps[1].invoke_task.task_def.title == "blah"
-            assert workflow_steps[1].invoke_task.task_def.input_schema is None
-            assert workflow_steps[1].invoke_task.task_def.output_schema is None
+    def test_nested_workflow_step_without_nv(self, engine:Engine, workflow_def_service: WorkflowDefService, workflow_def_dao:WorkflowDefDAO):
+        with Session(engine) as session:
+            with session.begin():
+                # task step 未定义 invoke_workflow_def_nv
+                create_workflow_def_details = CreateWorkflowDefDetails(
+                    name = "my-test-workflow-def",
+                    version = "1.0",
+                    description = "blah-d",
+                    title = "blah-t",
+                    steps = [
+                        CreateWorkflowDefStepDetails(
+                            key = "step1",
+                            description = "step1-d",
+                            title = "step1-t",
+                            type = StepDefType.WORKFLOW,
+                            input = '{"x": workflow.input.x, "y": workflow.input.y}',
+                            is_return_step = True,
+                            invoke_workflow_def_nv = None
+                        )
+                    ],
+                    step_deps = [  ],
+                    input_schema = self.input_schema,
+                    output_schema = self.output_schema
+                )
+                with pytest.raises(BadInput):
+                    workflow_def_service.create_workflow_def(create_workflow_def_details, session=session)
+
+    def test_nested_workflow_step_with_undefined_nv(self, engine:Engine, workflow_def_service: WorkflowDefService, workflow_def_dao:WorkflowDefDAO):
+        with Session(engine) as session:
+            with session.begin():
+                # invoke_workflow_def_nv 指向未定义的workflow def，期待异常
+                create_workflow_def_details = CreateWorkflowDefDetails(
+                    name = "my-test-workflow-def2",
+                    version = "1.0",
+                    description = "blah-d",
+                    title = "blah-t",
+                    steps = [
+                        CreateWorkflowDefStepDetails(
+                            key = "step1",
+                            description = "step1-d",
+                            title = "step1-t",
+                            type = StepDefType.WORKFLOW,
+                            input = '{"x": workflow.input.x, "y": workflow.input.y}',
+                            is_return_step = True,
+                            invoke_workflow_def_nv = NameAndVersion(name="undefined", version="9.9")
+                        )
+                    ],
+                    step_deps = [  ],
+                    input_schema = self.input_schema,
+                    output_schema = self.output_schema
+                )
+                with pytest.raises(BadInput):
+                    workflow_def_service.create_workflow_def(create_workflow_def_details, session=session)
+

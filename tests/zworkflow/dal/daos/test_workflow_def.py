@@ -4,7 +4,7 @@ logger = logging.getLogger(__name__)
 from sqlalchemy import create_engine, Engine
 from sqlalchemy.orm import Session
 from zworkflow.dal.dtos import create_all_tables, TaskDefDTO, WorkflowDefDTO, StepDefDTO, StepDefType, StepDefDepDTO
-from zworkflow.dal.daos import TaskDefDAO, WorkflowDefDAO, StepDefDAO, StepDefDepDAO
+from zworkflow.dal.daos import TaskDefDAO, WorkflowDefDAO, StepDefDAO, StepDefDepDAO, WorkflowDAO
 
 def is_task_def_dto_same(task_def_dto1: TaskDefDTO, task_def_dto2: TaskDefDTO):
     if task_def_dto1 is None and task_def_dto2 is None:
@@ -151,3 +151,18 @@ def test_workflow_def_dao(
         with session.begin() as transaction:
             workflow_dtos = workflow_def_dao.list(session=session)
             assert len(workflow_dtos) == 1
+
+def test_workflow_def_dao_get_by_name_and_version(engine:Engine, workflow_dao: WorkflowDAO, workflow_def_dao:WorkflowDefDAO, simple_saved_workflow_id:str):
+    with Session(engine) as session:
+        with session.begin():
+            workflow_dto = workflow_dao.get(simple_saved_workflow_id, session=session)
+
+            workflow_def_dto = workflow_def_dao.get_by_name_and_version(
+                workflow_dto.workflow_def.name, 
+                workflow_dto.workflow_def.version,
+                session=session
+            )
+            assert workflow_def_dto is not None
+            assert workflow_def_dto.id == workflow_dto.workflow_def.id
+            assert workflow_def_dto.name == workflow_dto.workflow_def.name
+            assert workflow_def_dto.version == workflow_dto.workflow_def.version

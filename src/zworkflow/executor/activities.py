@@ -34,6 +34,13 @@ async def generic_activity(step_id: str) -> None:
 
     engine:Engine = create_engine(app_config.database.url, connect_args=app_config.database.connect_args)
 
+    # 等待20秒，让task进入RUN_REQUESTED状态
+    # 如果等待超时，不要扔出异常，悄悄地退出，将来可以重新执行这些workflow
+    if not await workflow_service.wait_for_task_in_run_requested_state(step_id, 20, engine=engine):
+        logger.info(f"generic_activity({step_id}): task is not in RUN_REQUESTED state after waiting for 20 seconds")
+        return
+
+
     def log_task_output(task_id:str, message:str)-> None:
         with Session(engine) as session:
             with session.begin() as transaction:
@@ -50,28 +57,17 @@ async def generic_activity(step_id: str) -> None:
 
 
     with Session(engine) as session:
-        with session.begin() as transaction:
+        with session.begin():
             zworkflow, step = workflow_service.get_step(step_id, session=session)
             logger.info(f"generic_activity({step_id}): step key = {step.step_def.key}, step type: {step.step_def.type}, workflow_id = {zworkflow.id}")
-
-            if step.step_def.type != StepDefType.TASK:
-                # 目前，activity只支持执行task。如果不是task，则立刻返回
-                logger.warning(f"generic_activity({step_id}): type is {step.step_def.type},  not yet supported!")
-                return None
-
+            assert step.step_def.type == StepDefType.TASK
+            assert step.invoke_task is not None
             task = step.invoke_task
-            if task is None:
-                logger.warning(f"generic_activity({step_id}): task not found")
-                return None
-
             task_def = step.step_def.invoke_task_def
             logger.info(f"generic_activity({step_id}): task id = {task.id}, task state = {task.state}, task name: {task_def.name}, task version: {task_def.version}, task input: {task.input}")
             
-            ####################################################################
-            # 进入这个函数的时候，task的状态应该是RUN_REQUESTED
-            # 将task切换成RUNNING状态
-            ####################################################################
-            workflow_service.set_task_state_running(task.id, session=session)
+            # 需要改变task状态: RUN_REQUESTED --> RUNNING
+            workflow_service.set_step_state_running(step_id, session=session)
             logger.info(f"generic_activity({step_id}): change task state to RUNNING")
             event_service.create(
                 CreateEventDetails(
@@ -90,8 +86,18 @@ async def generic_activity(step_id: str) -> None:
     if handler is None:
         logger.info(f"generic_activity({step_id}): no handler, step failed")
         with Session(engine) as session:
-            with session.begin() as transaction:
-                workflow_service.set_task_state_failed(task.id, session=session)
+            with session.begin():
+                workflow_service.set_step_state_failed(step_id, session=session)
+                event_service.create(
+                    CreateEventDetails(
+                        type = EventType.TASK_EXECUTION_FAILED,
+                        workflow_id = zworkflow.id,
+                        step_id = step_id,
+                        task_id = task.id,
+                        message = f"Task {task_def.name}:{task_def.version} does not have handler"
+                    ),
+                    session=session
+                )
         return None
     
     # 现在，检查输入是否匹配input的JSON Schema
@@ -104,8 +110,8 @@ async def generic_activity(step_id: str) -> None:
         except ValidationError as e:
             logger.info(f"generic_activity({step_id}): task input violate task schema")
             with Session(engine) as session:
-                with session.begin() as transaction:
-                    workflow_service.set_task_state_failed(task.id, session=session)
+                with session.begin():
+                    workflow_service.set_step_state_failed(step_id, session=session)
                     event_service.create(
                         CreateEventDetails(
                             type = EventType.TASK_EXECUTION_FAILED,
@@ -117,15 +123,14 @@ async def generic_activity(step_id: str) -> None:
                         session=session
                     )
             return None
-
     
     try:
         output = await handler(task.input, logger=lambda message: log_task_output(task.id, message))
     except Exception as e:
         stack = "".join(traceback.format_exception(e))
         with Session(engine) as session:
-            with session.begin() as transaction:
-                workflow_service.set_task_state_failed(task.id, session=session)
+            with session.begin():
+                workflow_service.set_step_state_failed(step_id, session=session)
                 event_service.create(
                     CreateEventDetails(
                         type = EventType.TASK_EXECUTION_FAILED,
@@ -150,8 +155,8 @@ async def generic_activity(step_id: str) -> None:
         except ValidationError as e:
             logger.info(f"generic_activity({step_id}): task output violate task schema")
             with Session(engine) as session:
-                with session.begin() as transaction:
-                    workflow_service.set_task_state_failed(task.id, session=session)
+                with session.begin():
+                    workflow_service.set_step_state_failed(step_id, session=session)
                     event_service.create(
                         CreateEventDetails(
                             type = EventType.TASK_EXECUTION_FAILED,
@@ -166,10 +171,8 @@ async def generic_activity(step_id: str) -> None:
 
     # task output没有问题，可以将这个task设置成成功了。
     with Session(engine) as session:
-        with session.begin() as transaction:
-            workflow_service.set_task_state_succeeded(task.id, output, session=session)
-            if step.step_def.is_return_step:
-                workflow_service.set_output(zworkflow.id, output, session=session)
+        with session.begin():
+            workflow_service.set_task_state_succeeded(step_id, output, session=session)
             event_service.create(
                 CreateEventDetails(
                     type = EventType.TASK_EXECUTION_SUCCEEDED,

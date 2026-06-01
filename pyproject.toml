@@ -27,6 +27,7 @@ dependencies = [
     "aiofiles",
     "psycopg2-binary",
     "cel_expr_python",
+    "jsonschema"
 ]
 
 [project.urls]

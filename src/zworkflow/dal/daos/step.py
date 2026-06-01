@@ -24,3 +24,9 @@ class StepDAO:
         session.add(step)
         session.flush()
         return step
+
+    def reset(self, step_dto:StepDTO, *, session:Session)-> None:
+        step_dto.invoke_task_id = None
+        step_dto.invoke_workflow_id = None
+        session.flush()
+        session.refresh(step_dto)

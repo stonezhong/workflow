@@ -131,3 +131,15 @@ def test_workflow_dao(
             assert workflow_dto.state == WorkflowState.CREATED
             assert workflow_dto.input == {"x": 1, "y": 1}
             assert len(workflow_dto.steps) == 1
+
+def test_workflow_dao_reset(engine:Engine, workflow_dao:WorkflowDAO, simple_saved_workflow_id:str):
+
+    with Session(engine) as session:
+        with session.begin():
+            workflow_dto = workflow_dao.get(simple_saved_workflow_id, session=session)
+            workflow_dao.reset(workflow_dto, session=session)
+
+            assert workflow_dto.state == WorkflowState.CREATED
+            assert workflow_dto.output is None
+            assert workflow_dto.time_started is None
+            assert workflow_dto.time_ended is None

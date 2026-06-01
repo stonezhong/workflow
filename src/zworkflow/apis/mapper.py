@@ -8,7 +8,7 @@ from zworkflow.core.models import TaskDef, WorkflowDef, StepDef, StepDefDep, Cre
     CreateWorkflowDetails, Schema, CreateSchemaDetails, Step, Task, Event
 from .models  import APITaskDef, APIWorkflowDef, APIStepDef, APIStepDefDep, APICreateTaskDefDetails, APINameAndVersion, \
     APICreateWorkflowDefStepDetails, APICreateWorkflowDefDetails, APIStepDefDepDetails, APIWorkflow, APICreateWorkflowDetails, \
-    APISchema, APICreateSchemaDetails, APIStep, APITask, APIEvent, APIWorkflowState, APITaskState
+    APISchema, APICreateSchemaDetails, APIStep, APITask, APIEvent, APIWorkflowState, APITaskState, APIStepState
 
 class APIMapper:
     # XXX_to_api: 将domain model转换成API model
@@ -91,8 +91,8 @@ class APIMapper:
             workflow_def = self.workflow_def_to_api(workflow.workflow_def),
             description = workflow.description,
             title = workflow.title,
-            input = workflow.input,
-            output = workflow.output,
+            input = deepcopy(workflow.input),
+            output = deepcopy(workflow.output),
             state = self.workflow_state_to_api(workflow.state),
             steps = [self.step_to_api(step) for step in workflow.steps],
             time_created = workflow.time_created,
@@ -198,7 +198,7 @@ class APIMapper:
             ),
             description = create_workflow_details.description,
             title = create_workflow_details.title,
-            input = create_workflow_details.input
+            input = deepcopy(create_workflow_details.input)
         )
 
     def create_schema_details_to_model(self, create_schema_details: APICreateSchemaDetails) -> CreateSchemaDetails:

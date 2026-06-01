@@ -23,7 +23,7 @@ class EventDAO:
 
     # 保存或创建新的SchemaDTO
     # 创建新的SchemaDTO，其id必须是None
-    def save(self, event:EventDTO, *, session:Session) -> EventDTO:
-        session.add(event)
+    def save(self, event_dto:EventDTO, *, session:Session) -> EventDTO:
+        session.add(event_dto)
         session.flush()
-        return event
+        return event_dto

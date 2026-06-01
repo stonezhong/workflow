@@ -1,0 +1,4 @@
+add:
+  "1.0": test_handlers:add
+mul:
+  "1.0": test_handlers:mul
