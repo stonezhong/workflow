@@ -11,7 +11,7 @@ from zworkflow.core.services import WorkflowService, WorkflowDefService, EventSe
 from zworkflow.core.models import TaskDef, NameAndVersion, CreateTaskDefDetails, StepDefDepDetails
 from zworkflow.core.models import CreateWorkflowDetails, CreateWorkflowDefDetails, CreateWorkflowDefStepDetails
 from zworkflow.dal.dtos import create_all_tables, StepDefType, WorkflowState
-from zworkflow.core.exceptions import WorkflowInputSchemaViolation
+from zworkflow.core.exceptions import WorkflowInputSchemaViolation, FailedToSubmitWorkflow
 
 ########################################################################
 # 这个文件测试WorkflowService
@@ -64,10 +64,28 @@ def temporal_worker():
     log_dir = os.path.join(os.getcwd(), "sample_worker", "logs")
     os.makedirs(log_dir, exist_ok=True)
     log_file = open(os.path.join(log_dir, "temporal-worker.log"), "a+")
+    # worker_proc = subprocess.Popen(
+    #     [
+    #         os.path.join(os.environ['VENV_DIR'], 'bin', 'python'),
+    #         "-m", 
+    #         "zworkflow.executor", 
+    #         "--handlers", 
+    #         "handlers.yaml"
+    #     ],
+    #     stdout=log_file,
+    #     stderr=subprocess.STDOUT,
+    #     text=True,
+    #     cwd=os.path.join(os.getcwd(), "sample_worker"),       
+    # )
     worker_proc = subprocess.Popen(
         [
             os.path.join(os.environ['VENV_DIR'], 'bin', 'python'),
             "-m", 
+            "coverage",
+            "run",
+            "--data-file",
+            os.path.join(os.getcwd(), ".coverage"),
+            "-m",
             "zworkflow.executor", 
             "--handlers", 
             "handlers.yaml"
@@ -243,16 +261,6 @@ class IntegrationTestSuit:
                 )
                 workflow_def_service.create_workflow_def(create_workflow_def_details, session=session)
 
-    ########################################################################
-    # 定义加法任务
-    # 定义乘法任务
-    # 定义一个简单的workflow。
-    #   它有三个步骤: step1, step2, step3
-    #   step1 --> step3
-    #   step2 --> step3
-    #   step3是返回步骤
-    # 执行这个简单的workflow。返回成功。
-    ########################################################################
     @pytest.mark.usefixtures("temporal_worker")
     @pytest.mark.usefixtures("temporal_server")
     @pytest.mark.asyncio
@@ -263,6 +271,7 @@ class IntegrationTestSuit:
         workflow_service: WorkflowService,
         event_service: EventService
     ):
+        print()
         print("###################################################")
         print("# Integration test: create a simple workflow")
         print("# Expect          : workflow created, executed to end successfully")
@@ -312,16 +321,6 @@ class IntegrationTestSuit:
         assert workflow.output['result'] == 3
 
 
-    ########################################################################
-    # 定义加法任务
-    # 定义乘法任务
-    # 定义一个简单的workflow。
-    #   它有三个步骤: step1, step2, step3
-    #   step1 --> step3
-    #   step2 --> step3
-    #   step3是返回步骤
-    # 执行这个简单的workflow。返回成功。
-    ########################################################################
     @pytest.mark.usefixtures("temporal_worker")
     @pytest.mark.usefixtures("temporal_server")
     @pytest.mark.asyncio
@@ -331,6 +330,7 @@ class IntegrationTestSuit:
         workflow_def_service: WorkflowDefService,
         workflow_service: WorkflowService
     ):
+        print()
         print("###################################################")
         print("# Integration test: create a workflow, pass input that violates schema")
         print("# Expect          : create_workflow throws exception")
@@ -358,6 +358,46 @@ class IntegrationTestSuit:
                 )
 
                 with pytest.raises(WorkflowInputSchemaViolation):
+                    await workflow_service.create_workflow(create_workflow_details, session = session)
+
+
+
+    @pytest.mark.asyncio
+    async def test_simple3(
+        self, 
+        real_engine:Engine, 
+        workflow_def_service: WorkflowDefService,
+        workflow_service: WorkflowService,
+        event_service: EventService
+    ):
+        print()
+        print("###################################################")
+        print("# Integration test: create a simple workflow, temporal service is not up")
+        print("# Expect          : create_workflow throws exception")
+        print("###################################################")
+        print()
+        self.cleanup_database(real_engine)
+
+        # 创建加法和乘法任务定义
+        self.create_add_task_def(real_engine, workflow_def_service)
+        self.create_mul_task_def(real_engine, workflow_def_service)
+        # 创建一个简单的Workflow定义
+        self.create_simple_workflow_def(real_engine, workflow_def_service)
+
+        # 现在创建一个workflow
+        with Session(real_engine) as session:
+            with session.begin():
+                create_workflow_details = CreateWorkflowDetails(
+                    workflow_def_nv = NameAndVersion(
+                        name = "test",
+                        version = "1.0"
+                    ),
+                    description = "run test workflow",
+                    title = "run test workflow",
+                    input = {"x": 1, "y": 2}
+                )
+
+                with pytest.raises(FailedToSubmitWorkflow):
                     await workflow_service.create_workflow(create_workflow_details, session = session)
 
 

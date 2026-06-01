@@ -249,9 +249,8 @@ class WorkflowService:
         
         workflow_dto:WorkflowDTO = self._create_workflow_in_db(create_workflow_details, session = session)
         # 只启动，并不等待workflow结束
-        # TODO: 捕捉temporal exception并且转化为WorkflowError
-        client = await Client.connect(f"{app_config.temporal.host}:{app_config.temporal.port}")
         try:
+            client = await Client.connect(f"{app_config.temporal.host}:{app_config.temporal.port}")
             await client.start_workflow(
                 "GenericWorkflow",
                 (workflow_dto.id, None),
@@ -276,6 +275,7 @@ class WorkflowService:
             session.refresh(workflow_dto)
             return self.mapper.workflow_to_model(workflow_dto)
         except Exception as e:
+            logger.exception("Unable to submit workflow to temporal")
             raise FailedToSubmitWorkflow(str(e)) from e
 
 

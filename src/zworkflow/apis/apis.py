@@ -196,7 +196,18 @@ async def workflow_list(session: Session = Depends(get_db)) -> List[APIWorkflow]
     status_code=201,
     tags = ["Workflow"],
     summary="Create a workflow",
-    description = "Create a workflow"
+    description = "Create a workflow",
+    responses={
+        400: {
+            "description": "Create workflow with wrong create_workflow_details"
+        },
+        500: {
+            "description": "Internal server error"
+        },
+        503: {
+            "description": "Required backend is temporay out of service"
+        },
+    },
 )
 async def workflow_create(create_workflow_details:APICreateWorkflowDetails, session: Session = Depends(get_db)) -> APIWorkflow:
     try:
@@ -206,6 +217,8 @@ async def workflow_create(create_workflow_details:APICreateWorkflowDetails, sess
         return api_mapper.workflow_to_api(workflow)
     except (core_exceptions.BadInput, core_exceptions.WorkflowInputSchemaViolation) as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except (core_exceptions.FailedToSubmitWorkflow) as e:
+        raise HTTPException(status_code=503, detail=str(e))
 
 @app.post(
     "/workflows/{workflow_id}/restart",
