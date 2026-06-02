@@ -19,13 +19,26 @@ class TemporalConfig(BaseModel):
     queue_name: str
 
 def _load_app_config() -> AppConfig:
-    config_file = os.path.expanduser(os.environ.get("CONFIG", "~/zworkflow.yaml"))
-    if not os.path.isfile(config_file):
-        raise ValueError(f"config file \"{config_file}\" not found!")
-    
-    with open(config_file) as f:
-        data = yaml.safe_load(f)
+    config_file_candidates = [
+        os.environ.get("ZWORKFLOW_CONFIG"),
+        os.path.join(os.getcwd(), "zworkflow.yaml"),    # 当前目录配置文件
+        os.path.expanduser("~/zworkflow.yaml"),         # 用户跟目录的配置文件
+    ]
 
+    messages = []
+    data = None
+    for config_file in config_file_candidates:
+        if config_file is None:
+            continue
+        if os.path.isfile(config_file):
+            with open(config_file) as f:
+                data = yaml.safe_load(f)
+            break
+        else:
+            messages.append(f"config file {config_file} does not exist")
+    
+    if data is None:
+        raise ValueError(','.join(messages))
     return AppConfig.model_validate(data)
 
 app_config: AppConfig = _load_app_config()
